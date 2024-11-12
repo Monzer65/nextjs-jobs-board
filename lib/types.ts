@@ -1,0 +1,29 @@
+export interface Job {
+  id: number;
+  title: string;
+  company: string;
+  bannerUrl?: string;
+  profileUrl?: string;
+  location?: string;
+  type?: string;
+  description?: string;
+  companyRating?: number;
+  workHours?: string;
+  workMode?: string;
+  requiredSkills?: string[];
+  fullDescription?: string;
+  responsibilities?: string[];
+  qualifications?: string[];
+  salaryRange?: string;
+  benefits?: string[];
+  postedDate?: string;
+  expiryDate?: string;
+  experienceLevel?: string;
+  industry?: string;
+  educationRequirements?: string[];
+  applicationUrl?: string;
+  contactEmail?: string;
+  internalId?: string;
+  viewsCount?: number;
+  applicantsCount?: number;
+}

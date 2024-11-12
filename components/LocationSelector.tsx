@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronsUpDown, MapPin } from "lucide-react";
+import { Check, ChevronsUpDown, MapPin, PanelBottomOpen } from "lucide-react";
 import Fuse from "fuse.js";
 
 import { cn } from "@/lib/utils";
@@ -25,7 +25,15 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Drawer,
+  DrawerTrigger,
+  DrawerContent,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+
 import { getAllCities } from "@/lib/getLocations";
+import useMediaQuery from "@/hooks/useMediaQuery";
 
 interface City {
   id: number;
@@ -42,7 +50,6 @@ interface LocationSelectorProps {
   onLocationSelect: (location: string) => void;
 }
 
-// Example data, replace with your actual data
 const provincesData: Province[] = getAllCities();
 
 export default function LocationSelector({
@@ -52,6 +59,7 @@ export default function LocationSelector({
   const [value, setValue] = useState("");
   const [search, setSearch] = useState("");
   const [provinces, setProvinces] = useState<Province[]>([]);
+  const isDesktop = useMediaQuery(768);
 
   useEffect(() => {
     setProvinces(provincesData);
@@ -90,51 +98,80 @@ export default function LocationSelector({
     const location = city.name;
     onLocationSelect(location);
     setValue(`${city.name}, ${province.name}`);
+    setOpen(false);
   };
 
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild className='md:w-[250px]'>
-        <Button
-          variant='outline'
-          role='combobox'
-          aria-expanded={open}
-          className={cn(
-            "h-14 justify-between w-full text-lg",
-            value.includes("همه شهرهای") ? "text-base" : "text-lg"
-          )}
-        >
-          <span className='truncate'>{value || "انتخاب شهر یا استان..."}</span>
-          <ChevronsUpDown className='ml-2 h-5 w-5 shrink-0 opacity-50' />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className='p-0 w-full md:w-[250px]'>
-        <Command className='font-[family-name:var(--font-vazirmatn-regular)]'>
-          <CommandInput
-            placeholder='جستجو...'
-            className='h-12 text-lg'
-            value={search}
-            onValueChange={setSearch}
-          />
-          <CommandList>
-            {search ? (
-              filteredResults.length === 0 ? (
-                <CommandEmpty>هیچ نتیجه‌ای یافت نشد.</CommandEmpty>
-              ) : (
-                filteredResults.flatMap((province) =>
-                  province.cities
-                    .filter((city) =>
-                      city.name.toLowerCase().includes(search.toLowerCase())
-                    )
-                    .map((city) => (
+  const renderContent = () => (
+    <Command className='font-[family-name:var(--font-vazirmatn-regular)]'>
+      <CommandInput
+        placeholder='جستجو...'
+        className='text-lg'
+        value={search}
+        onValueChange={setSearch}
+      />
+      <CommandList>
+        {search ? (
+          filteredResults.length === 0 ? (
+            <CommandEmpty>هیچ نتیجه‌ای یافت نشد.</CommandEmpty>
+          ) : (
+            filteredResults.flatMap((province) =>
+              province.cities
+                .filter((city) =>
+                  city.name.toLowerCase().includes(search.toLowerCase())
+                )
+                .map((city) => (
+                  <CommandItem
+                    key={city.id}
+                    value={city.name}
+                    onSelect={() => handleSearchSelect(city, province)}
+                    className='text-lg'
+                  >
+                    <MapPin className='w-4 h-4' />
+                    {city.name}, {province.name}
+                    <Check
+                      className={cn(
+                        "ml-auto h-4 w-4",
+                        value === `${city.name}, ${province.name}`
+                          ? "opacity-100"
+                          : "opacity-0"
+                      )}
+                    />
+                  </CommandItem>
+                ))
+            )
+          )
+        ) : (
+          <Accordion type='single' collapsible>
+            {provinces.map((province) => (
+              <AccordionItem value={province.id.toString()} key={province.id}>
+                <AccordionTrigger className='text-lg font-bold text-red-800 px-2'>
+                  {province.name}
+                </AccordionTrigger>
+                <AccordionContent>
+                  <CommandGroup>
+                    <CommandItem
+                      value={`همه شهرهای ${province.name}`}
+                      onSelect={() => handleProvinceSelect(province)}
+                      className='text-lg font-bold'
+                    >
+                      {`همه شهرهای ${province.name}`}
+                      <Check
+                        className={cn(
+                          "ml-auto h-4 w-4",
+                          value === `همه شهرهای ${province.name}`
+                            ? "opacity-100"
+                            : "opacity-0"
+                        )}
+                      />
+                    </CommandItem>
+                    {province.cities.map((city) => (
                       <CommandItem
                         key={city.id}
                         value={city.name}
-                        onSelect={() => handleSearchSelect(city, province)}
+                        onSelect={() => handleCitySelect(city, province)}
                         className='text-lg'
                       >
-                        <MapPin className='w-4 h-4' />
-                        {city.name}, {province.name}
+                        {city.name}
                         <Check
                           className={cn(
                             "ml-auto h-4 w-4",
@@ -144,63 +181,56 @@ export default function LocationSelector({
                           )}
                         />
                       </CommandItem>
-                    ))
-                )
-              )
-            ) : (
-              <Accordion type='single' collapsible className='w-full'>
-                {provinces.map((province) => (
-                  <AccordionItem
-                    value={province.id.toString()}
-                    key={province.id}
-                  >
-                    <AccordionTrigger className='text-lg font-bold text-red-800 px-2'>
-                      {province.name}
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <CommandGroup>
-                        <CommandItem
-                          value={`همه شهرهای ${province.name}`}
-                          onSelect={() => handleProvinceSelect(province)}
-                          className='text-lg font-bold'
-                        >
-                          {`همه شهرهای ${province.name}`}
-                          <Check
-                            className={cn(
-                              "ml-auto h-4 w-4",
-                              value === `همه شهرهای ${province.name}`
-                                ? "opacity-100"
-                                : "opacity-0"
-                            )}
-                          />
-                        </CommandItem>
-                        {province.cities.map((city) => (
-                          <CommandItem
-                            key={city.id}
-                            value={city.name}
-                            onSelect={() => handleCitySelect(city, province)}
-                            className='text-lg'
-                          >
-                            {city.name}
-                            <Check
-                              className={cn(
-                                "ml-auto h-4 w-4",
-                                value === `${city.name}, ${province.name}`
-                                  ? "opacity-100"
-                                  : "opacity-0"
-                              )}
-                            />
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            )}
-          </CommandList>
-        </Command>
-      </PopoverContent>
+                    ))}
+                  </CommandGroup>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        )}
+      </CommandList>
+    </Command>
+  );
+
+  return isDesktop ? (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild className='w-[250px] h-14'>
+        <Button
+          variant='outline'
+          role='combobox'
+          aria-expanded={open}
+          className={cn(
+            "justify-between text-lg",
+            value.includes("همه شهرهای") ? "text-sm" : "text-lg"
+          )}
+        >
+          <span className='truncate flex gap-2 items-center'>
+            <MapPin className='w-6' /> {value || "انتخاب شهر یا استان..."}
+          </span>
+          <ChevronsUpDown className='h-5 w-5 shrink-0 opacity-50' />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className='p-0'>{renderContent()}</PopoverContent>
     </Popover>
+  ) : (
+    <Drawer open={open} onOpenChange={setOpen}>
+      <DrawerTrigger asChild className='h-14 '>
+        <Button
+          variant='outline'
+          role='combobox'
+          aria-expanded={open}
+          className='justify-between text-lg'
+        >
+          <span className='truncate flex gap-2 items-center'>
+            <MapPin className='w-6' /> {value || "انتخاب شهر یا استان..."}
+          </span>
+          <PanelBottomOpen className='ml-2 h-5 w-5 shrink-0 opacity-50' />
+        </Button>
+      </DrawerTrigger>
+      <DrawerContent className='p-4' aria-describedby={undefined}>
+        <DrawerTitle className='sr-only'>انتخاب شهر یا استان</DrawerTitle>
+        {renderContent()}
+      </DrawerContent>
+    </Drawer>
   );
 }
