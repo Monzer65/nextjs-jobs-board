@@ -19,8 +19,27 @@ const vazirmatn = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Jobsy",
+  title: {
+    template: "%s | Jobsy",
+    default: "Jobsy",
+  },
   description: "Jobsy - Jobs Made Easy",
+  applicationName: "Jobsy",
+  keywords: [
+    "jobsy",
+    "کاریابی",
+    "پیدا",
+    "پیدا کردن",
+    "شغل",
+    "پیدا کردن شغل",
+    "پیدا کردن کار",
+    "کار",
+    "فریلنسر",
+    "فریلنسری",
+    "پروژه",
+    "پروژه فریلنسری",
+    "پروژه های فریلنسری",
+  ],
 };
 
 export default function RootLayout({

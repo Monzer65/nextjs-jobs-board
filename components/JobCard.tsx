@@ -34,15 +34,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatDate } from "@/lib/formateDate";
-import { Job } from "@/lib/types";
+import { CompanyDetails, JobDetails } from "@/lib/types";
 
 interface JobCardProps {
-  job: Job;
-  onSelect: (job: Job) => void;
+  job: JobDetails;
+  employer: CompanyDetails;
+  onSelect: (job: JobDetails) => void;
   isSelected: boolean;
 }
 
-const JobCard: FC<JobCardProps> = ({ job, onSelect, isSelected }) => {
+const JobCard: FC<JobCardProps> = ({ job, employer, onSelect, isSelected }) => {
   return (
     <Card
       className={`cursor-pointer overflow-hidden group ${
@@ -57,12 +58,12 @@ const JobCard: FC<JobCardProps> = ({ job, onSelect, isSelected }) => {
               {job.title}
             </CardTitle>
             <CardDescription className='mt-2'>
-              <span>{job.company}</span>
-              {job.companyRating && (
+              <span>{employer?.name}</span>
+              {job?.analytics?.performanceMetrics.successRates && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger
-                      aria-label={`امتیاز ${job.companyRating.toFixed(
+                      aria-label={`امتیاز ${job?.analytics?.performanceMetrics.successRates.toFixed(
                         1
                       )} از پنج`}
                       role='img'
@@ -70,7 +71,9 @@ const JobCard: FC<JobCardProps> = ({ job, onSelect, isSelected }) => {
                       <span className='flex mr-2'>
                         <Star className='text-sm w-4 h-4 text-gray-400 fill-gray-500' />
                         <span className='mr-1 text-sm'>
-                          {job.companyRating.toFixed(1)}
+                          {job?.analytics?.performanceMetrics.successRates.toFixed(
+                            1
+                          )}
                         </span>
                       </span>
                     </TooltipTrigger>
@@ -104,15 +107,18 @@ const JobCard: FC<JobCardProps> = ({ job, onSelect, isSelected }) => {
           {job.location && (
             <Badge variant='secondary'>
               <MapPin className='ml-1 h-3 w-3' />
-              {job.location}
+              <span>{job.location.city}</span>
             </Badge>
           )}
-          {job.type && (
-            <Badge variant='secondary'>
-              <Briefcase className='ml-1 h-3 w-3' />
-              {job.type}
-            </Badge>
-          )}
+
+          {job.jobType &&
+            job.jobType.map((type, index) => (
+              <Badge key={index} variant='secondary' className='mr-2'>
+                <Briefcase className='ml-1 h-3 w-3' />
+                {type}
+              </Badge>
+            ))}
+
           {job.workMode && (
             <Badge variant='secondary'>
               <Clock className='ml-1 h-3 w-3' />
@@ -125,31 +131,49 @@ const JobCard: FC<JobCardProps> = ({ job, onSelect, isSelected }) => {
             {job.description}
           </p>
         )}
-        {job.requiredSkills && job.requiredSkills.length > 0 && (
+        {/* {job.skills && job.skills.length > 0 && (
           <div className='flex flex-wrap gap-2'>
-            {job.requiredSkills.map((skill, index) => (
-              <Badge key={index} variant='outline'>
-                {skill}
-              </Badge>
+            {job.skills.map((skill, index) => (
+              <>
+                {skill.isRequired ? (
+                  <>
+                    <span>required:</span>
+                    <Badge key={index} variant='outline'>
+                      {skill.name}
+                    </Badge>
+                  </>
+                ) : (
+                  <>
+                    <span>prefered:</span>
+                    <Badge key={index} variant='outline'>
+                      {skill.name}
+                    </Badge>
+                  </>
+                )}
+              </>
             ))}
           </div>
-        )}
+        )} */}
       </CardContent>
       <CardFooter className='flex flex-col items-start lg:flex-row lg:flex-wrap lg:items-center text-sm text-muted-foreground lg:gap-y-2 gap-x-6'>
-        {job.viewsCount !== undefined && (
+        {job.analytics?.usageData.pageViews !== undefined && (
           <div className='flex items-center gap-x-2'>
             <Eye className='h-4 w-4' />
             <span>
-              <span className='text-green-600'>{job.viewsCount} </span>
+              <span className='text-green-600'>
+                {job.analytics?.usageData.pageViews}{" "}
+              </span>
               بازدید
             </span>
           </div>
         )}
-        {job.applicantsCount !== undefined && (
+        {job.analytics?.usageData.applicationRates !== undefined && (
           <div className='flex items-center gap-x-2'>
             <Users className='h-4 w-4' />
             <span>
-              <span className='text-green-600'>{job.applicantsCount} </span>
+              <span className='text-green-600'>
+                {job.analytics?.usageData.applicationRates}{" "}
+              </span>
               متقاضی
             </span>
           </div>

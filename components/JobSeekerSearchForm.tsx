@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { Clock, Search } from "lucide-react";
 import { Input } from "./ui/input";
 
-export default function SearchForm() {
+export default function JobSeekerSearchForm() {
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
   const [isFocused, setIsFocused] = useState(false);

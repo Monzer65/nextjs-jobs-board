@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1732531663265,
+      "tag": "0000_thin_photon",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1732531746440,
+      "tag": "0001_chilly_logan",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1732531832619,
+      "tag": "0002_light_stone_men",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1732532328520,
+      "tag": "0003_demonic_magneto",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1732622386304,
+      "tag": "0004_lush_lady_deathstrike",
+      "breakpoints": true
+    }
+  ]
+}

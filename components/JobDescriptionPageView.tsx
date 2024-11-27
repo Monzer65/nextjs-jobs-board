@@ -20,21 +20,27 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { formatDate } from "@/lib/formateDate";
-import { Job } from "@/lib/types";
+import { CompanyDetails, JobDetails } from "@/lib/types";
 
-export default function JobDescriptionPageView({ job }: { job: Job }) {
+export default function JobDescriptionPageView({
+  job,
+  employer,
+}: {
+  job: JobDetails;
+  employer: CompanyDetails;
+}) {
   const [isApplying, setIsApplying] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
 
   useEffect(() => {
-    if (job.expiryDate) {
-      const expiry = new Date(job.expiryDate);
+    if (job.applicationDeadline) {
+      const expiry = new Date(job.applicationDeadline);
       const today = new Date();
       const diffInTime = expiry.getTime() - today.getTime();
       const diffInDays = Math.ceil(diffInTime / (1000 * 60 * 60 * 24));
       setDaysRemaining(diffInDays >= 0 ? diffInDays : 0); // Set to 0 if already expired
     }
-  }, [job.expiryDate]);
+  }, [job.applicationDeadline]);
 
   const handleApply = () => {
     setIsApplying(true);
@@ -64,44 +70,50 @@ export default function JobDescriptionPageView({ job }: { job: Job }) {
       <div className='max-w-4xl mx-auto'>
         <Card className='bg-white shadow-lg rounded-lg overflow-hidden'>
           {/* Warning for expired job */}
-          {job.expiryDate && new Date(job.expiryDate) < new Date() && (
-            <div className='flex items-center gap-2 p-4 mb-4 bg-red-100 text-red-800 rounded-md'>
-              <AlertCircle className='w-5 h-5' />
-              <span>این آگهی منقضی شده است</span>
-            </div>
-          )}
+          {job.applicationDeadline &&
+            new Date(job.applicationDeadline) < new Date() && (
+              <div className='flex items-center gap-2 p-4 mb-4 bg-red-100 text-red-800 rounded-md'>
+                <AlertCircle className='w-5 h-5' />
+                <span>این آگهی منقضی شده است</span>
+              </div>
+            )}
 
           {/* Header */}
-          <div
+          {/* <div
             className='text-white p-6 sm:p-8'
             style={{
-              backgroundImage: job.bannerUrl ? `url(${job.bannerUrl})` : "none",
-              backgroundColor: job.bannerUrl ? "transparent" : "#2563eb", // Hex code for bg-blue-600
+              backgroundImage: job.recruiter.bannerImageUrl
+                ? `url(${job.recruiter.bannerImageUrl})`
+                : "none",
+              backgroundColor: job.recruiter.bannerImageUrl
+                ? "transparent"
+                : "#2563eb", // Hex code for bg-blue-600
               backgroundSize: "cover",
               backgroundPosition: "center",
             }}
           >
-            {job.profileUrl && (
+            {job.recruiter.profilePictureUrl && (
               <Image
-                src={job.profileUrl}
-                alt={`${job.company} logo`}
+                src={job.recruiter.profilePictureUrl}
+                alt={`${job.recruiter.company} logo`}
                 width={80}
                 height={80}
                 className='rounded-full bg-white p-1'
               />
             )}
-          </div>
+          </div> */}
 
           <div className='flex items-center justify-between p-6 sm:p-8'>
             <div>
               <h1 className='text-3xl font-bold'>{job.title}</h1>
               <div className='mt-2 flex items-center'>
                 <Building2 className='h-5 w-5 ml-2' />
-                <span>{job.company}</span>
+                {/* <span>{job.recruiter.company}</span> */}
+                company name
               </div>
               <div className='mt-1 flex items-center'>
                 <MapPin className='h-5 w-5 ml-2' />
-                <span>{job.location || "دورکاری"}</span>
+                <span>{job.location?.city || "دورکاری"}</span>
               </div>
             </div>
           </div>
@@ -113,12 +125,21 @@ export default function JobDescriptionPageView({ job }: { job: Job }) {
                 <div className='flex flex-wrap gap-4 mb-6'>
                   <Badge variant='secondary' className='flex items-center'>
                     <DollarSign className='h-4 w-4 ml-1' />
-                    {job.salaryRange || "قابل مذاکره"}
+                    {`${job.salaryRange?.min}-${job.salaryRange?.max} ${job.salaryRange?.currency}` ||
+                      "قابل مذاکره"}
                   </Badge>
-                  <Badge variant='secondary' className='flex items-center'>
-                    <Briefcase className='h-4 w-4 ml-1' />
-                    {job.type}
-                  </Badge>
+
+                  {job.jobType &&
+                    job.jobType.map((type, index) => (
+                      <Badge
+                        key={index}
+                        variant='secondary'
+                        className='flex items-center mr-2'
+                      >
+                        <Briefcase className='ml-1 h-4 w-4' />
+                        {type}
+                      </Badge>
+                    ))}
                   <Badge variant='secondary' className='flex items-center'>
                     <Clock className='h-4 w-4 ml-1' />
                     {job.workHours || "تمام وقت"}
@@ -131,11 +152,14 @@ export default function JobDescriptionPageView({ job }: { job: Job }) {
                 <div className='space-y-4'>
                   <div className='flex items-center gap-x-2'>
                     <Building2 className='w-5 h-5 text-muted-foreground' />
-                    <span>{job.industry || "نامشخص"}</span>
+                    <span>{job.jobIndustry || "نامشخص"}</span>
                   </div>
                   <div className='flex items-center gap-x-2'>
                     <Briefcase className='w-5 h-5 text-muted-foreground' />
-                    <span>{job.experienceLevel || "همه سطوح"}</span>
+                    <span>
+                      {(job.experience && job.experience[0].level) ||
+                        "همه سطوح"}
+                    </span>
                   </div>
                   {job.educationRequirements && (
                     <div className='flex items-center gap-x-2'>
@@ -157,31 +181,34 @@ export default function JobDescriptionPageView({ job }: { job: Job }) {
                       </span>
                     </p>
                   )}
-                  {job.expiryDate && (
+                  {job.applicationDeadline && (
                     <p className='text-sm text-muted-foreground'>
                       تاریخ انقضاء:
                       <span>
                         {" "}
-                        {formatDate(new Date(job.expiryDate), "MMM d, yyyy")}
+                        {formatDate(
+                          new Date(job.applicationDeadline),
+                          "MMM d, yyyy"
+                        )}
                       </span>
                       {daysRemaining !== null && (
                         <span className='ml-2'>({daysRemaining} روز)</span>
                       )}
                     </p>
                   )}
-                  {job.viewsCount !== undefined && (
+                  {job.analytics?.usageData.pageViews !== undefined && (
                     <div className='flex items-center gap-x-2'>
                       <Eye className='w-4 h-4 text-muted-foreground' />
                       <span className='text-sm text-muted-foreground'>
-                        {job.viewsCount} بازدید
+                        {job.analytics?.usageData.pageViews} بازدید
                       </span>
                     </div>
                   )}
-                  {job.applicantsCount !== undefined && (
+                  {job.analytics?.usageData.applicationRates !== undefined && (
                     <div className='flex items-center gap-x-2'>
                       <Users className='w-4 h-4 text-muted-foreground' />
                       <span className='text-sm text-muted-foreground'>
-                        {job.applicantsCount} درخواست
+                        {job.analytics?.usageData.applicationRates} درخواست
                       </span>
                     </div>
                   )}
@@ -193,8 +220,8 @@ export default function JobDescriptionPageView({ job }: { job: Job }) {
                 <div className='prose max-w-none mb-8'>
                   <h2 className='text-xl font-semibold mb-4'>توضیحات شغل</h2>
                   <p>
-                    {job.fullDescription ||
-                      job.description ||
+                    {job.description ||
+                      job.shortDescription ||
                       "توضیحات موجود نیست"}
                   </p>
                 </div>
@@ -221,22 +248,46 @@ export default function JobDescriptionPageView({ job }: { job: Job }) {
                   </div>
                 )}
 
-                {job.requiredSkills && job.requiredSkills.length > 0 && (
+                {job.skills && job.skills.length > 0 && (
                   <div className='mb-8'>
                     <h2 className='text-xl font-semibold mb-4'>
                       مهارت‌های مورد نیاز
                     </h2>
                     <div className='flex flex-wrap gap-2'>
-                      {job.requiredSkills.map((skill, index) => (
+                      {job.skills.map((skill, index) => (
                         <Badge key={index} variant='secondary'>
-                          {skill}
+                          {skill.name}
                         </Badge>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {job.benefits && job.benefits.length > 0 && (
+                {/* {job.skills && job.skills.length > 0 && (
+          <div className='flex flex-wrap gap-2'>
+            {job.skills.map((skill, index) => (
+              <>
+                {skill.isRequired ? (
+                  <>
+                    <span>required:</span>
+                    <Badge key={index} variant='outline'>
+                      {skill.name}
+                    </Badge>
+                  </>
+                ) : (
+                  <>
+                    <span>prefered:</span>
+                    <Badge key={index} variant='outline'>
+                      {skill.name}
+                    </Badge>
+                  </>
+                )}
+              </>
+            ))}
+          </div>
+        )} */}
+
+                {job.benefits && job.benefits && (
                   <div className='mb-8'>
                     <h2 className='text-xl font-semibold mb-4'>مزایا</h2>
                     <ul className='list-disc pr-5 space-y-2'>
@@ -248,7 +299,7 @@ export default function JobDescriptionPageView({ job }: { job: Job }) {
                 )}
 
                 <div className='flex justify-between items-center'>
-                  {job.applicationUrl && (
+                  {job.externalApplicationUrl && (
                     <Button
                       size='lg'
                       onClick={handleApply}
@@ -257,13 +308,13 @@ export default function JobDescriptionPageView({ job }: { job: Job }) {
                       {isApplying ? "در حال ارسال..." : "ارسال درخواست"}
                     </Button>
                   )}
-                  {job.contactEmail && (
+                  {/* {job. && (
                     <Button variant='outline' size='lg' asChild>
                       <Link href={`mailto:${job.contactEmail}`}>
                         درباره استخدام کننده
                       </Link>
                     </Button>
-                  )}
+                  )} */}
                   <Button variant='outline' size='icon'>
                     <Share2 className='h-4 w-4' />
                     <span className='sr-only'>Share</span>

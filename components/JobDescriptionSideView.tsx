@@ -33,9 +33,15 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatDate } from "@/lib/formateDate";
-import { Job } from "@/lib/types";
+import { CompanyDetails, JobDetails } from "@/lib/types";
 
-export default function JobDescriptionSideView({ job }: { job: Job }) {
+export default function JobDescriptionSideView({
+  job,
+  employer,
+}: {
+  job: JobDetails;
+  employer: CompanyDetails;
+}) {
   const descriptionRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState("description");
 
@@ -49,42 +55,47 @@ export default function JobDescriptionSideView({ job }: { job: Job }) {
   return (
     <Card className='max-h-screen mx-auto shadow-lg lg:sticky top-4 overflow-hidden flex flex-col'>
       <div className='sticky top-0 z-10 bg-white'>
-        <div className='relative h-40'>
-          {job.bannerUrl ? (
+        {/* <div className='relative h-40'>
+          {job?.recruiter?.bannerImageUrl ? (
             <Image
-              src={job.bannerUrl}
-              alt={`${job.company} banner`}
+              src={job?.recruiter?.bannerImageUrl}
+              alt={`${job?.recruiter?.company} banner`}
               layout='fill'
               objectFit='cover'
             />
           ) : (
             <div className='h-40 bg-gray-200' />
           )}
-        </div>
+        </div> */}
         <CardHeader className='relative pt-0'>
-          <div className='absolute -top-8 left-4 border-4 border-background rounded-full'>
+          {/* <div className='absolute -top-8 left-4 border-4 border-background rounded-full'>
             <Avatar className='h-16 w-16'>
-              {job.profileUrl ? (
-                <AvatarImage src={job.profileUrl} alt={job.company} />
+              {job?.recruiter?.profilePictureUrl ? (
+                <AvatarImage
+                  src={job?.recruiter?.profilePictureUrl}
+                  alt={job?.recruiter?.company}
+                />
               ) : (
                 <AvatarFallback>
-                  {job.company.slice(0, 2).toUpperCase()}
+                  {job?.recruiter?.name.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               )}
             </Avatar>
-          </div>
+          </div> */}
           <div className='mt-8'>
-            <CardTitle className='text-2xl'>{job.title}</CardTitle>
+            <CardTitle className='text-2xl'>{job?.title}</CardTitle>
             <CardDescription className='flex items-center mt-1'>
-              <span className='font-medium'>{job.company}</span>
-              {job.companyRating && (
+              <span className='font-medium'>{employer?.name}</span>
+              {job?.analytics?.usageData.applicationRates && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
                       <div className='flex items-center mr-2'>
                         <Star className='w-4 h-4 text-yellow-400 fill-yellow-400' />
                         <span className='text-sm mr-1'>
-                          {job.companyRating.toFixed(1)}
+                          {job?.analytics?.usageData.applicationRates.toFixed(
+                            1
+                          )}
                         </span>
                       </div>
                     </TooltipTrigger>
@@ -97,7 +108,7 @@ export default function JobDescriptionSideView({ job }: { job: Job }) {
         </CardHeader>
         <div className='px-6 py-2 border-t border-b flex justify-between items-center bg-white'>
           <div className='flex gap-2'>
-            {job.contactEmail && (
+            {employer.email && (
               <Button variant='outline' size='sm'>
                 <Mail className='w-4 h-4 mr-2' />
                 تماس
@@ -110,7 +121,7 @@ export default function JobDescriptionSideView({ job }: { job: Job }) {
           </div>
           <Button className='px-8' asChild>
             <a
-              href={job.applicationUrl}
+              href={job.externalApplicationUrl}
               target='_blank'
               rel='noopener noreferrer'
             >
@@ -126,15 +137,17 @@ export default function JobDescriptionSideView({ job }: { job: Job }) {
             {job.location && (
               <div className='flex items-center gap-2'>
                 <MapPin className='w-4 h-4 text-gray-500' />
-                <span>{job.location}</span>
+                <span>{job.location.city}</span>
               </div>
             )}
-            {job.type && (
-              <div className='flex items-center gap-2'>
-                <Briefcase className='w-4 h-4 text-gray-500' />
-                <span>{job.type}</span>
-              </div>
-            )}
+            {job.jobType &&
+              job.jobType.length > 0 &&
+              job.jobType.map((type, index) => (
+                <div className='flex items-center gap-2'>
+                  <Briefcase className='w-4 h-4 text-gray-500' />
+                  <span>{type}</span>
+                </div>
+              ))}
             {job.workHours && (
               <div className='flex items-center gap-2'>
                 <Clock className='w-4 h-4 text-gray-500' />
@@ -147,22 +160,24 @@ export default function JobDescriptionSideView({ job }: { job: Job }) {
                 <span>{job.workMode}</span>
               </div>
             )}
-            {job.experienceLevel && (
+            {job.experience[0].level && (
               <div className='flex items-center gap-2'>
                 <Users className='w-4 h-4 text-gray-500' />
-                <span>{job.experienceLevel}</span>
+                <span>{job.experience[0].level}</span>
               </div>
             )}
-            {job.industry && (
+            {job.jobIndustry && (
               <div className='flex items-center gap-2'>
                 <Building className='w-4 h-4 text-gray-500' />
-                <span>{job.industry}</span>
+                <span>{job.jobIndustry}</span>
               </div>
             )}
             {job.salaryRange && (
               <div className='flex items-center gap-2'>
                 <DollarSign className='w-4 h-4 text-gray-500' />
-                <span>{job.salaryRange}</span>
+                <span>
+                  {job.salaryRange.min}-{job.salaryRange.max} تومان
+                </span>
               </div>
             )}
             {job.postedDate && (
@@ -176,13 +191,13 @@ export default function JobDescriptionSideView({ job }: { job: Job }) {
             )}
           </div>
 
-          {job.requiredSkills && job.requiredSkills.length > 0 && (
+          {job.skills && job.skills.length > 0 && (
             <div>
               <h4 className='font-semibold mb-2'>مهارت‌های لازم</h4>
               <div className='flex flex-wrap gap-2'>
-                {job.requiredSkills.map((skill, index) => (
+                {job.skills.map((skill, index) => (
                   <Badge key={index} variant='secondary'>
-                    {skill}
+                    {skill.name}
                   </Badge>
                 ))}
               </div>
@@ -204,14 +219,14 @@ export default function JobDescriptionSideView({ job }: { job: Job }) {
               <TabsContent value='description'>
                 <ScrollArea className='h-64 pr-4'>
                   <p className='text-gray-700'>
-                    {job.fullDescription || job.description}
+                    {job?.description || job?.shortDescription}
                   </p>
                 </ScrollArea>
               </TabsContent>
               <TabsContent value='responsibilities'>
                 <ScrollArea className='h-64 pr-4'>
                   <ul className='list-disc list-inside space-y-2 text-gray-700'>
-                    {job.responsibilities?.map((task, index) => (
+                    {job?.responsibilities?.map((task, index) => (
                       <li key={index}>{task}</li>
                     ))}
                   </ul>
@@ -253,23 +268,24 @@ export default function JobDescriptionSideView({ job }: { job: Job }) {
             )}
 
           <div className='flex items-center justify-between text-sm text-gray-500'>
-            {job.viewsCount !== undefined && (
+            {job?.analytics?.usageData.jobPostViews !== undefined && (
               <div className='flex items-center gap-1'>
                 <Eye className='w-4 h-4' />
-                <span>{job.viewsCount} بازدید</span>
+                <span>{job?.analytics?.usageData.jobPostViews} بازدید</span>
               </div>
             )}
-            {job.applicantsCount !== undefined && (
+            {job?.analytics?.usageData.applicationRates !== undefined && (
               <div className='flex items-center gap-1'>
                 <Users className='w-4 h-4' />
-                <span>{job.applicantsCount} متقاضی</span>
+                <span>{job?.analytics?.usageData.applicationRates} متقاضی</span>
               </div>
             )}
-            {job.expiryDate && (
+            {job.applicationDeadline && (
               <div className='flex items-center gap-1'>
                 <Calendar className='w-4 h-4' />
                 <span>
-                  انقضاء {formatDate(new Date(job.expiryDate), "MMM d, yyyy")}
+                  انقضاء{" "}
+                  {formatDate(new Date(job.applicationDeadline), "MMM d, yyyy")}
                 </span>
               </div>
             )}
