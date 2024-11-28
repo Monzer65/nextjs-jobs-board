@@ -1,12 +1,8 @@
 import VerificationForm from "@/components/VerificationForm";
-export default async function VerifyPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
+export default async function VerifyPage() {
   return (
     <div>
-      <VerificationForm searchParams={searchParams} />
+      <VerificationForm />
     </div>
   );
 }

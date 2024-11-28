@@ -42,7 +42,7 @@ export const signupSchema = userInsertSchema
   .refine(
     (data) => {
       if (data.contactMethod === "email") {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
         const isValid = emailRegex.test(data.email || "");
         if (!isValid) {
           return false;
@@ -89,15 +89,50 @@ export const signupSchema = userInsertSchema
     }
   );
 
-export const confirmatioSchema = z.object({
-  email: z.string().optional(),
-  phone: z.string().optional(),
-  otp: z.string().length(6),
-});
+export const confirmationSchema = z
+  .object({
+    email: z.string().optional(),
+    phone: z.string().optional(),
+    otp: z.string().length(6, "کد تایید باید حداقل ۶ کاراکتر باشد"),
+  })
+  .refine(
+    (data) => {
+      if (data.email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+        const isValid = emailRegex.test(data.email);
+        if (!isValid) {
+          return false;
+        }
+        return !!data.email;
+      }
+      return true;
+    },
+    {
+      message: messages.email,
+      path: ["email"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.phone) {
+        const phoneRegex = /^(?:\+98|0098|98|0)?(9[0-9]{9})$/;
+        const isValid = phoneRegex.test(data.phone || "");
+        if (!isValid) {
+          return false;
+        }
+        return !!data.phone;
+      }
+      return true;
+    },
+    {
+      message: messages.phone,
+      path: ["phone"],
+    }
+  );
 
 export const selectUserSchema = createSelectSchema(user);
 
 export type UserInsertSchemaType = z.infer<typeof userInsertSchema>;
 export type SignupSchemaType = z.infer<typeof signupSchema>;
-export type ConfirmationSchemaType = z.infer<typeof confirmatioSchema>;
+export type ConfirmationSchemaType = z.infer<typeof confirmationSchema>;
 export type SelectUserSchemaType = z.infer<typeof selectUserSchema>;

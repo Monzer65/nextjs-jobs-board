@@ -22,11 +22,11 @@ const user = pgTable("user", {
     .default("user"),
   isActive: boolean("is_active").default(true),
   lastLogin: timestamp("last_login").defaultNow(),
-  createdAt: timestamp("created_at", { mode: "string" }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { mode: "string" })
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at")
     .notNull()
     .defaultNow()
-    .$onUpdate(() => new Date().toLocaleString()),
+    .$onUpdate(() => new Date()),
 });
 
 export default user;

@@ -5,6 +5,7 @@ import {
   FormLabel,
   FormItem,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { InputHTMLAttributes, ReactNode } from "react";
@@ -13,7 +14,12 @@ type FieldProps<S> = {
   name: string;
   schemaName: keyof S & string;
   type: string;
+  description?: string;
+  textDir?: string;
+  descriptionClassName?: string;
   className?: string;
+  labelClassName?: string;
+  inputDir?: string;
   icon?: ReactNode; // Add an `icon` prop for rendering
 } & InputHTMLAttributes<HTMLInputElement>;
 
@@ -21,7 +27,11 @@ export default function CustomInputField<S>({
   name,
   schemaName,
   type,
+  description,
+  textDir,
   className,
+  labelClassName,
+  inputDir,
   icon,
   ...props
 }: FieldProps<S>) {
@@ -33,7 +43,10 @@ export default function CustomInputField<S>({
       name={schemaName}
       render={({ field }) => (
         <FormItem>
-          <FormLabel htmlFor={schemaName} className={`text-base ${className}`}>
+          <FormLabel
+            htmlFor={schemaName}
+            className={`text-base ${labelClassName}`}
+          >
             {name}
           </FormLabel>
           <FormControl>
@@ -48,13 +61,14 @@ export default function CustomInputField<S>({
                 type={type}
                 {...field}
                 {...props}
-                dir='rtl'
+                dir={inputDir}
                 className={`disabled:opacity-75 pr-10 ${className}`}
                 value={field.value ?? ""}
               />
             </div>
           </FormControl>
-          <FormMessage />
+          <FormMessage dir={textDir} />
+          <FormDescription dir={textDir}>{description}</FormDescription>
         </FormItem>
       )}
     ></FormField>

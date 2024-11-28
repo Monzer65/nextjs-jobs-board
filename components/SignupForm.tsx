@@ -24,9 +24,20 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-import { X, Mail, Phone, User, Lock, UserPlus, Loader2 } from "lucide-react";
+import {
+  X,
+  Mail,
+  Phone,
+  User,
+  Lock,
+  UserPlus,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
 import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 // Array definition
 export const UserTypesArr: CustomSelectDataObj[] = [
@@ -128,30 +139,36 @@ export default function SignupForm() {
             onSubmit={form.handleSubmit(onSubmit)}
           >
             {state?.message && !state.issues && (
-              <div
-                className={`border ${
-                  state.success === true
-                    ? "border-green-400 text-green-700 bg-green-100"
-                    : "border-red-400 text-red-700 bg-red-100"
-                }   px-4 py-3 rounded relative`}
-                role='alert'
+              <Alert
+                variant={state.success === true ? "default" : "destructive"}
+                className='mt-4'
+                dir='rtl'
               >
-                <span className='block sm:inline'>{state.message}</span>
-                {state.message ===
-                  "کاربر قبلا ثبت نام کرده اما هنوز تایید نشده است" && (
-                  <Button onClick={redirectToVerify} className='ml-2 mt-2'>
-                    {" "}
-                    رفتن به صفحه تایید{" "}
-                  </Button>
+                {state.success === true ? (
+                  <CheckCircle className='ml-2 h-4 w-4 text-green-500' />
+                ) : (
+                  <AlertCircle className='ml-2 h-4 w-4 text-red-500' />
                 )}
-                {state.message ===
-                  "کاربر با این شماره موبایل یا ایمیل وجود دارد" && (
-                  <Button onClick={redirectToLogin} className='ml-2 mt-2'>
-                    {" "}
-                    رفتن به صفحه ورود{" "}
-                  </Button>
-                )}
-              </div>
+                <AlertTitle className='flex items-center'>
+                  {state.success === true ? "موفق" : "خطا"}
+                </AlertTitle>
+                <AlertDescription>
+                  {state.message}
+                  {state.message ===
+                    "کاربر قبلا ثبت نام کرده اما هنوز تایید نشده است" && (
+                    <Button onClick={redirectToVerify} className='ml-2 mt-2'>
+                      صفحه تایید
+                    </Button>
+                  )}
+                  {state.message ===
+                    "کاربر با این شماره موبایل یا ایمیل وجود دارد" && (
+                    <Button onClick={redirectToLogin} className='ml-2 mt-2'>
+                      {" "}
+                      صفحه ورود
+                    </Button>
+                  )}
+                </AlertDescription>
+              </Alert>
             )}
             {state?.issues && (
               <div

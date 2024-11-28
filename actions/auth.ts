@@ -2,7 +2,7 @@
 
 import { eq, or } from "drizzle-orm";
 import { db } from "@/db";
-import { confirmatioSchema, signupSchema } from "@/zod-schemas/user";
+import { confirmationSchema, signupSchema } from "@/zod-schemas/user";
 import bcrypt from "bcryptjs";
 import { user } from "@/db/schema";
 import { redirect } from "next/navigation";
@@ -65,11 +65,16 @@ export async function signupAction(
       success: false,
     };
   }
-  redirect(
-    `/auth/verify?${email ? "email" : "phone"}=${
-      email?.toString() || phone?.toString()
-    }`
-  );
+
+  let queryParam = "";
+
+  if (email) {
+    queryParam = `email=${encodeURIComponent(email)}`;
+  } else if (phone) {
+    queryParam = `phone=${encodeURIComponent(phone)}`;
+  }
+
+  redirect(`/auth/verify?${queryParam}`);
 }
 
 async function checkExistingUser(
@@ -116,8 +121,8 @@ export async function verifyOtpAction(
   const fields: Record<string, string> = Object.fromEntries(
     Object.entries(formData).map(([key, value]) => [key, value.toString()])
   );
-  const parsed = confirmatioSchema.safeParse(formData);
-
+  const parsed = confirmationSchema.safeParse(formData);
+  console.log("data:", parsed.data);
   if (!parsed.success) {
     console.error("Validation Error:", parsed.error.issues);
     return {
@@ -141,20 +146,37 @@ export async function verifyOtpAction(
   }
 
   if (conditions.length === 0) {
-    throw new Error("Either email or phone must be provided");
+    return { message: "ایمیل و یا تلفن باید موجود باشد" };
   }
 
-  // Use `or` to combine conditions if both are provided
   const queryCondition =
     conditions.length > 1 ? or(...conditions) : conditions[0];
   try {
     const existingUser = await db.select().from(user).where(queryCondition);
 
     if (existingUser.length === 0) {
+      if (email) {
+        return {
+          message: "کاربری با این ایمیل وجود ندارد",
+          fields,
+          success: false,
+        };
+      }
       return {
-        message: "کاربری با این شماره موبایل یا ایمیل وجود ندارد",
+        message: "کاربری با این شماره موبایل وجود ندارد",
         fields,
         success: false,
+      };
+    }
+
+    if (
+      (email && existingUser[0].emailVerified === true) ||
+      (phone && existingUser[0].phoneVerified === true)
+    ) {
+      return {
+        message: `این ${
+          email ? `ایمیل: ${email}` : `تلفن: ${phone}`
+        } قبلا تایید شده است`,
       };
     }
 
@@ -162,19 +184,14 @@ export async function verifyOtpAction(
       if (phone && existingUser[0].phone === phone) {
         await db
           .update(user)
-          .set({ phoneVerified: true })
+          .set({ phoneVerified: true, confirmationCode: null })
           .where(eq(user.id, existingUser[0].id));
       } else if (email && existingUser[0].email === email) {
         await db
           .update(user)
-          .set({ emailVerified: true })
+          .set({ emailVerified: true, confirmationCode: null })
           .where(eq(user.id, existingUser[0].id));
       }
-
-      await db
-        .update(user)
-        .set({ confirmationCode: null })
-        .where(eq(user.id, existingUser[0].id));
 
       return {
         message: "تایید شد",

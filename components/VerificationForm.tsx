@@ -1,6 +1,12 @@
 "use client";
 
-import { useRef, useActionState, use, startTransition } from "react";
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -13,7 +19,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { ConfirmationSchemaType, confirmatioSchema } from "@/zod-schemas/user";
 import {
   InputOTP,
   InputOTPGroup,
@@ -26,54 +31,97 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "./ui/card";
-import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-import { ArrowRight, RefreshCw, CheckCircle, XCircle, X } from "lucide-react";
+} from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  ArrowRight,
+  RefreshCw,
+  CheckCircle,
+  Loader2,
+  AlertCircle,
+  Verified,
+  Phone,
+  Mail,
+  Edit,
+} from "lucide-react";
 import { verifyOtpAction } from "@/actions/auth";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { confirmationSchema, ConfirmationSchemaType } from "@/zod-schemas/user";
+import CustomInputField from "./CustomInputField";
+import { useSearchParams } from "next/navigation";
 
-export default function VerificationForm({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
-  const { email, phone } = use(searchParams);
-
+export default function VerificationForm() {
+  const searchParams = useSearchParams();
+  const email = searchParams.get("email");
+  const phone = searchParams.get("phone");
   const [state, formAction, isPending] = useActionState(verifyOtpAction, {
     message: "",
+    fields: {},
+    success: false,
   });
-
-  const form = useForm<ConfirmationSchemaType>({
-    resolver: zodResolver(confirmatioSchema),
-    defaultValues: {
-      phone: "",
-      email: "",
-      otp: "",
-      ...(state?.fields ?? {}),
-    },
-  });
+  const [contactType, setContactType] = useState<"email" | "phone">("phone");
+  const [isEditing, setIsEditing] = useState(false);
 
   const formRef = useRef<HTMLFormElement>(null);
 
-  const onSubmit = (data: ConfirmationSchemaType) => {
-    const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        formData.append(key, value.toString());
+  const form = useForm<ConfirmationSchemaType>({
+    resolver: zodResolver(confirmationSchema),
+    defaultValues: {
+      otp: "",
+      email: "",
+      phone: "",
+    },
+  });
+
+  useEffect(() => {
+    if (email) {
+      form.setValue("email", email);
+    } else if (phone) {
+      form.setValue("phone", phone);
+    } else {
+      setIsEditing(true); // No valid contact info found
+    }
+  }, [email, phone, form]);
+
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === "email" && value.email) {
+        form.setValue("phone", "");
+      } else if (name === "phone" && value.phone) {
+        form.setValue("email", "");
       }
     });
 
-    // Ensure both email and phone are always present
-    if (email) {
-      formData.set("email", email.toString());
-      formData.set("phone", "");
-    } else if (phone) {
-      formData.set("phone", phone.toString());
-      formData.set("email", "");
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  const onSubmit = async (data: ConfirmationSchemaType) => {
+    const formData = new FormData();
+
+    if (!data[contactType]) {
+      setIsEditing(true);
+      return;
     }
 
+    formData.append("otp", data.otp);
+    formData.append(contactType, data[contactType] || "");
+    for (const pair of formData.entries()) {
+      console.log(`${pair[0]}: ${pair[1]}`);
+    }
     startTransition(() => {
       formAction(formData);
     });
+  };
+
+  const handleResendCode = () => {
+    // Implement resend code logic here
+    console.log("Resend code clicked");
+  };
+
+  const handleBackButton = () => {
+    // Implement back button logic here
+    console.log("Back button clicked");
   };
 
   return (
@@ -83,11 +131,13 @@ export default function VerificationForm({
           <CardTitle className='text-2xl font-bold'>
             تایید حساب کاربری
           </CardTitle>
-          <CardDescription className='mt-2'>
-            کد تایید به {email ? "ایمیل" : "شماره تلفن"}{" "}
-            <span className='font-semibold'>{email ? email : phone}</span> ارسال
-            شده است
-          </CardDescription>
+          {(email || phone) && (
+            <CardDescription className='mt-2'>
+              کد تایید به {email ? "ایمیل" : "شماره تلفن"}{" "}
+              <span className='font-semibold'>{email || phone}</span> ارسال شده
+              است
+            </CardDescription>
+          )}
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -98,47 +148,22 @@ export default function VerificationForm({
               dir='ltr'
               ref={formRef}
             >
-              {state?.message && !state.issues && (
-                // <div
-                //   className={`border ${
-                //     state.success === true
-                //       ? "border-green-400 text-green-700 bg-green-100"
-                //       : "border-red-400 text-red-700 bg-red-100"
-                //   }   px-4 py-3 rounded relative`}
-                //   role='alert'
-                // >
-                //   <span className='block sm:inline'>{state.message}</span>
-
-                // </div>
+              {state?.message && (
                 <Alert
-                  variant={state.success === true ? "default" : "destructive"}
-                  className='mt-4'
+                  variant={state.success ? "default" : "destructive"}
+                  className='mt-4 text-right'
+                  dir='rtl'
                 >
+                  {state.success ? (
+                    <CheckCircle className='ml-2 h-4 w-4 text-green-500' />
+                  ) : (
+                    <AlertCircle className='ml-2 h-4 w-4 text-red-500' />
+                  )}
                   <AlertTitle className='flex items-center'>
-                    {state.success === true ? (
-                      <CheckCircle className='mr-2 h-4 w-4 text-green-500' />
-                    ) : (
-                      <XCircle className='mr-2 h-4 w-4 text-red-500' />
-                    )}
-                    {state.success === true ? "موفق" : "خطا"}
+                    {state.success ? "موفق" : "خطا"}
                   </AlertTitle>
                   <AlertDescription>{state.message}</AlertDescription>
                 </Alert>
-              )}
-              {state?.issues && (
-                <div
-                  className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative'
-                  role='alert'
-                >
-                  <ul className='list-disc list-inside'>
-                    {state.issues.map((issue) => (
-                      <li key={issue} className='flex items-center gap-2'>
-                        <X className='h-4 w-4' />
-                        <span>{issue}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
               )}
               <FormField
                 control={form.control}
@@ -152,7 +177,7 @@ export default function VerificationForm({
                         {...field}
                         className='flex justify-center gap-2'
                       >
-                        <InputOTPGroup className='m-auto'>
+                        <InputOTPGroup className='m-auto w-full [&>*]:flex-1'>
                           <InputOTPSlot index={0} />
                           <InputOTPSlot index={1} />
                           <InputOTPSlot index={2} />
@@ -162,14 +187,74 @@ export default function VerificationForm({
                         </InputOTPGroup>
                       </InputOTP>
                     </FormControl>
-                    <FormDescription className='text-center mt-2'>
+                    <FormMessage dir='rtl' />
+                    <FormDescription className='mt-2' dir='rtl'>
                       برای تایید حساب کاربری، کد شش رقمی را در کادر فوق وارد
                       کنید
                     </FormDescription>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
+              {(email || phone) && !isEditing ? (
+                <div className='flex items-center'>
+                  <span className='font-semibold'>{email || phone}</span>
+                  <Button
+                    variant='ghost'
+                    onClick={() => setIsEditing(true)}
+                    title='ویرایش'
+                  >
+                    <Edit className='h-4 w-4' />
+                    <span className='sr-only'>edit</span>
+                  </Button>
+                </div>
+              ) : (
+                <div>
+                  <RadioGroup
+                    onValueChange={(value) => {
+                      setContactType(value as "email" | "phone");
+                    }}
+                    defaultValue={contactType}
+                    className='flex space-x-4 rtl:space-x-reverse'
+                    dir='rtl'
+                  >
+                    <div className='flex items-center space-x-2'>
+                      <RadioGroupItem value='phone' id='phone' />
+                      <Label htmlFor='phone'>تایید تلفن</Label>
+                    </div>
+                    <div className='flex items-center space-x-2'>
+                      <RadioGroupItem value='email' id='email' />
+                      <Label htmlFor='email'>تایید ایمیل</Label>
+                    </div>
+                  </RadioGroup>
+
+                  {contactType === "email" && (
+                    <CustomInputField
+                      name='ایمیل'
+                      schemaName='email'
+                      inputDir='ltr'
+                      textDir='rtl'
+                      labelClassName='sr-only'
+                      className={`rtl-placeholder`}
+                      placeholder='ایمیلی که با آن ثبت نام کرده‌اید'
+                      type='email'
+                      icon={<Mail className='h-4 w-4 text-gray-500' />}
+                    />
+                  )}
+                  {contactType === "phone" && (
+                    <CustomInputField
+                      name='تلفن'
+                      schemaName='phone'
+                      inputDir='ltr'
+                      textDir='rtl'
+                      labelClassName='sr-only'
+                      className={`rtl-placeholder`}
+                      placeholder='شماره تلفنی که با آن ثبت نام کرده‌اید'
+                      type='tel'
+                      icon={<Phone className='h-4 w-4 text-gray-500' />}
+                    />
+                  )}
+                </div>
+              )}
             </form>
           </Form>
         </CardContent>
@@ -178,24 +263,28 @@ export default function VerificationForm({
             <Button
               type='button'
               variant='outline'
-              onClick={() => console.log("kk")}
+              onClick={handleBackButton}
               className='w-1/3'
             >
               <ArrowRight className='ml-2 h-4 w-4' /> بازگشت
             </Button>
             <Button
               type='submit'
-              disabled={isPending}
               onClick={form.handleSubmit(onSubmit)}
-              className='w-2/3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 transition-all duration-300'
+              className='w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white py-2 rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all duration-300'
             >
+              {isPending ? (
+                <Loader2 className='ml-2 h-4 w-4 animate-spin' />
+              ) : (
+                <Verified className='ml-2 h-4 w-4' />
+              )}
               {isPending ? "در حال ارسال..." : "تایید کد"}
             </Button>
           </div>
           <Button
             type='button'
-            variant='ghost'
-            onClick={() => console.log("handlereset")}
+            variant='link'
+            onClick={handleResendCode}
             className='w-full hover:bg-blue-50'
           >
             <RefreshCw className='ml-2 h-4 w-4' /> ارسال مجدد کد
