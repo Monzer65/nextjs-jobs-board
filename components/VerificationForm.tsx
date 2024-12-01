@@ -3,13 +3,14 @@
 import {
   startTransition,
   useActionState,
+  useCallback,
   useEffect,
   useRef,
   useState,
 } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -50,11 +51,13 @@ import { Label } from "@/components/ui/label";
 import { confirmationSchema, ConfirmationSchemaType } from "@/zod-schemas/user";
 import CustomInputField from "./CustomInputField";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 export default function VerificationForm() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email");
   const phone = searchParams.get("phone");
+  const otp = searchParams.get("otp");
   const [state, formAction, isPending] = useActionState(verifyOtpAction, {
     message: "",
     fields: {},
@@ -77,12 +80,15 @@ export default function VerificationForm() {
   useEffect(() => {
     if (email) {
       form.setValue("email", email);
+      setContactType("email");
     } else if (phone) {
       form.setValue("phone", phone);
-    } else {
-      setIsEditing(true); // No valid contact info found
+      setContactType("phone");
     }
-  }, [email, phone, form]);
+    if (otp) {
+      form.setValue("otp", otp);
+    }
+  }, [email, phone, otp, form]);
 
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
@@ -96,32 +102,61 @@ export default function VerificationForm() {
     return () => subscription.unsubscribe();
   }, [form]);
 
-  const onSubmit = async (data: ConfirmationSchemaType) => {
-    const formData = new FormData();
+  useEffect(() => {
+    const errors = form.formState.errors;
 
-    if (!data[contactType]) {
+    if (errors.email || errors.phone) {
       setIsEditing(true);
+    }
+  }, [form.formState.errors]);
+
+  const onSubmit = useCallback(
+    async (data: ConfirmationSchemaType) => {
+      const formData = new FormData();
+
+      if (!data[contactType]) {
+        setIsEditing(true);
+        return;
+      }
+
+      formData.append("otp", data.otp);
+      formData.append(contactType, data[contactType] || "");
+      for (const pair of formData.entries()) {
+        console.log(`${pair[0]}: ${pair[1]}`);
+      }
+
+      startTransition(() => {
+        formAction(formData);
+      });
+    },
+    [contactType, formAction]
+  );
+
+  useEffect(() => {
+    if (state.success || state.message) {
+      console.log("Submission skipped due to state success or message.");
       return;
     }
-
-    formData.append("otp", data.otp);
-    formData.append(contactType, data[contactType] || "");
-    for (const pair of formData.entries()) {
-      console.log(`${pair[0]}: ${pair[1]}`);
+    if (otp && (email || phone) && !isPending) {
+      console.log("Triggering form submission...");
+      const timer = setTimeout(() => {
+        form.handleSubmit(onSubmit)();
+      }, 500);
+      return () => clearTimeout(timer);
     }
-    startTransition(() => {
-      formAction(formData);
-    });
-  };
+  }, [
+    otp,
+    email,
+    phone,
+    state.success,
+    state.message,
+    isPending,
+    form,
+    onSubmit,
+  ]);
 
   const handleResendCode = () => {
-    // Implement resend code logic here
-    console.log("Resend code clicked");
-  };
-
-  const handleBackButton = () => {
-    // Implement back button logic here
-    console.log("Back button clicked");
+    alert("این قسمت هنوز پیاده سازی نشده است");
   };
 
   return (
@@ -217,11 +252,11 @@ export default function VerificationForm() {
                     className='flex space-x-4 rtl:space-x-reverse'
                     dir='rtl'
                   >
-                    <div className='flex items-center space-x-2'>
+                    <div className='flex items-center space-x-2 space-y-0 rtl:space-x-reverse'>
                       <RadioGroupItem value='phone' id='phone' />
                       <Label htmlFor='phone'>تایید تلفن</Label>
                     </div>
-                    <div className='flex items-center space-x-2'>
+                    <div className='flex items-center space-x-2 space-y-0 rtl:space-x-reverse'>
                       <RadioGroupItem value='email' id='email' />
                       <Label htmlFor='email'>تایید ایمیل</Label>
                     </div>
@@ -260,25 +295,26 @@ export default function VerificationForm() {
         </CardContent>
         <CardFooter className='flex flex-col space-y-4'>
           <div className='flex justify-between w-full gap-2'>
-            <Button
-              type='button'
-              variant='outline'
-              onClick={handleBackButton}
-              className='w-1/3'
+            <Link
+              href='/auth/signup'
+              className={`${buttonVariants({
+                variant: "outline",
+              })} w-1/3`}
             >
-              <ArrowRight className='ml-2 h-4 w-4' /> بازگشت
-            </Button>
+              <ArrowRight className='h-4 w-4' />
+              بازگشت
+            </Link>
             <Button
               type='submit'
               onClick={form.handleSubmit(onSubmit)}
               className='w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white py-2 rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all duration-300'
             >
               {isPending ? (
-                <Loader2 className='ml-2 h-4 w-4 animate-spin' />
+                <Loader2 className='h-4 w-4 animate-spin' />
               ) : (
-                <Verified className='ml-2 h-4 w-4' />
+                <Verified className='h-4 w-4' />
               )}
-              {isPending ? "در حال ارسال..." : "تایید کد"}
+              {isPending ? "در حال ارسال..." : "ارسال کد"}
             </Button>
           </div>
           <Button
@@ -287,7 +323,7 @@ export default function VerificationForm() {
             onClick={handleResendCode}
             className='w-full hover:bg-blue-50'
           >
-            <RefreshCw className='ml-2 h-4 w-4' /> ارسال مجدد کد
+            <RefreshCw className='h-4 w-4' /> ارسال مجدد کد
           </Button>
         </CardFooter>
       </Card>

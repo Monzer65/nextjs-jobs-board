@@ -11,8 +11,20 @@ const messages = {
   email: "ایمیل وارد شده صحیح نیست",
   phone: "تلفن وارد شده صحیح نیست",
   boolean: "مقدار باید درست یا نادرست باشد",
-  password: "رمز عبور باید حداقل ۶ کاراکتر باشد",
+  password: "رمز عبور باید حداقل ۸ کاراکتر باشد",
   confirm: "تکرار رمز عبور با رمز عبور مطابقت ندارد",
+};
+
+const emailRegex = /^.+@.+\..+$/;
+const phoneRegex = /^(?:\+98|0098|98|0)?(9[0-9]{9})$/;
+const usernameRegex =
+  /^[a-zA-Z0-9_\u0600-\u06FF\uFB8A\u067E\u0686\u06AF\u06F0-\u06F9\u0660-\u0669]+$/;
+
+export const isValiEmail = (email: string) => {
+  return emailRegex.test(email);
+};
+export const isvalidPhone = (phone: string) => {
+  return phoneRegex.test(phone);
 };
 
 export const userInsertSchema = createInsertSchema(user, {
@@ -20,13 +32,10 @@ export const userInsertSchema = createInsertSchema(user, {
     schema.username
       .min(3, messages.username)
       .max(30, "نام کاربری نمی‌تواند بیش از ۳۰ کاراکتر باشد.")
-      .regex(
-        /^[a-zA-Z0-9_\u0600-\u06FF\uFB8A\u067E\u0686\u06AF\u06F0-\u06F9\u0660-\u0669]+$/,
-        messages.invalid_username
-      ),
+      .regex(usernameRegex, messages.invalid_username),
   phone: (schema) => schema.phone.optional(),
   email: (schema) => schema.email.optional(),
-  password: (schema) => schema.password.min(6, messages.password),
+  password: (schema) => schema.password.min(8, messages.password),
 });
 
 export const signupSchema = userInsertSchema
@@ -42,8 +51,7 @@ export const signupSchema = userInsertSchema
   .refine(
     (data) => {
       if (data.contactMethod === "email") {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
-        const isValid = emailRegex.test(data.email || "");
+        const isValid = isValiEmail(data.email || "");
         if (!isValid) {
           return false;
         }
@@ -59,8 +67,7 @@ export const signupSchema = userInsertSchema
   .refine(
     (data) => {
       if (data.contactMethod === "phone") {
-        const phoneRegex = /^(?:\+98|0098|98|0)?(9[0-9]{9})$/;
-        const isValid = phoneRegex.test(data.phone || "");
+        const isValid = isvalidPhone(data.phone || "");
         if (!isValid) {
           return false;
         }
@@ -98,8 +105,7 @@ export const confirmationSchema = z
   .refine(
     (data) => {
       if (data.email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
-        const isValid = emailRegex.test(data.email);
+        const isValid = isValiEmail(data.email);
         if (!isValid) {
           return false;
         }
@@ -115,8 +121,7 @@ export const confirmationSchema = z
   .refine(
     (data) => {
       if (data.phone) {
-        const phoneRegex = /^(?:\+98|0098|98|0)?(9[0-9]{9})$/;
-        const isValid = phoneRegex.test(data.phone || "");
+        const isValid = isvalidPhone(data.phone);
         if (!isValid) {
           return false;
         }
@@ -130,9 +135,16 @@ export const confirmationSchema = z
     }
   );
 
-export const selectUserSchema = createSelectSchema(user);
+export const loginSchema = z.object({
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  password: z.string().min(6, messages.password),
+});
 
+export const updateUserSchema = userInsertSchema.partial();
+export const selectUserSchema = createSelectSchema(user);
 export type UserInsertSchemaType = z.infer<typeof userInsertSchema>;
 export type SignupSchemaType = z.infer<typeof signupSchema>;
 export type ConfirmationSchemaType = z.infer<typeof confirmationSchema>;
 export type SelectUserSchemaType = z.infer<typeof selectUserSchema>;
+export type LoginSchemaType = z.infer<typeof loginSchema>;

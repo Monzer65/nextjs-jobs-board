@@ -1,20 +1,45 @@
-import Link from "next/link";
+// import Link from "next/link";
 
-export default function AuthPage() {
+// export default function AuthPage() {
+//   return (
+//     <div className='container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-screen'>
+//       <h1 className='text-2xl font-bold mb-4'>اینجا چیزی نیست</h1>
+//       <p className='text-gray-600 mb-4'>
+//         می‌توانید به صفحات ورود و ثبت‌نام بروید
+//       </p>
+//       <div className=' flex gap-x-4'>
+//         <Link href={"/auth/signup"} className='text-blue-500 hover:underline '>
+//           ثبت نام
+//         </Link>
+//         <Link href={"/auth/login"} className='text-blue-500 hover:underline '>
+//           ورود
+//         </Link>
+//       </div>
+//     </div>
+//   );
+// }
+
+// belwo is used for testing google oauth login
+
+import { getCurrentSession } from "@/lib/server/session";
+import { redirect } from "next/navigation";
+import { globalGETRateLimit } from "@/lib/server/request";
+import { LogoutButton } from "@/components/googleComponent";
+
+export default function Page() {
+  if (!globalGETRateLimit()) {
+    return "Too many requests";
+  }
+  const { user } = getCurrentSession();
+  if (user === null) {
+    return redirect("/login");
+  }
   return (
-    <div className='container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-screen'>
-      <h1 className='text-2xl font-bold mb-4'>اینجا چیزی نیست</h1>
-      <p className='text-gray-600 mb-4'>
-        می‌توانید به صفحات ورود و ثبت‌نام بروید
-      </p>
-      <div className=' flex gap-x-4'>
-        <Link href={"/auth/signup"} className='text-blue-500 hover:underline '>
-          ثبت نام
-        </Link>
-        <Link href={"/auth/login"} className='text-blue-500 hover:underline '>
-          ورود
-        </Link>
-      </div>
-    </div>
+    <>
+      <h1>Hi, {user.username}!</h1>
+      <img src={user.picture} height='100px' width='100px' alt='profile' />
+      <p>Email: {user.email}</p>
+      <LogoutButton />
+    </>
   );
 }

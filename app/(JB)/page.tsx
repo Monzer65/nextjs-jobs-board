@@ -1,5 +1,3 @@
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import SearchTypeTabs from "@/components/SearchTypeTabs";
 
 export default function Home() {

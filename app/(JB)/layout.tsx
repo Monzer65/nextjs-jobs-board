@@ -1,5 +1,6 @@
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import { getCurrentSession } from "@/lib/server/session";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -26,14 +27,16 @@ export const metadata: Metadata = {
   ],
 };
 
-export default function JBLayout({
+export default async function JBLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { session, user } = await getCurrentSession();
+
   return (
     <div className='font-[family-name:var(--font-vazirmatn-regular)]'>
-      <Header />
+      <Header session={session} user={user} />
       {children}
       <Footer />
     </div>
