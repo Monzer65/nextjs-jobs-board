@@ -170,11 +170,14 @@ export default function Header({ session, user }: { session: any; user: any }) {
                   className='relative h-8 w-8 rounded-full'
                 >
                   <Avatar className='h-8 w-8'>
-                    {user.picture ? (
-                      <AvatarImage src={user.picture} alt='@username' />
-                    ) : (
-                      <AvatarFallback>{user ? user.name : "NA"}</AvatarFallback>
-                    )}
+                    <AvatarImage src={user.picture} alt='@username' />
+                    <AvatarFallback>
+                      {user
+                        ? (user.name || user.username || user.email)
+                            ?.charAt(0)
+                            .toUpperCase() || "?"
+                        : "?"}
+                    </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -224,10 +227,8 @@ export default function Header({ session, user }: { session: any; user: any }) {
                   تنظیمات
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem className='p-0 m-0'>
                   <LogoutButton />
-                  <LogOut className='mr-2 h-4 w-4' />
-                  خروج
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

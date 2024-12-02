@@ -68,6 +68,7 @@ export async function loginAction(
   if (!globalPOSTRateLimit()) {
     return {
       message: "Too many requests",
+      success: false,
     };
   }
   // TODO: Assumes X-Forwarded-For is always included.
@@ -83,22 +84,26 @@ export async function loginAction(
   if (typeof email !== "string" || typeof password !== "string") {
     return {
       message: "Invalid or missing fields",
+      success: false,
     };
   }
   if (email === "" || password === "") {
     return {
       message: "Please enter your email and password.",
+      success: false,
     };
   }
   if (!(await verifyEmailInput(email))) {
     return {
       message: "Invalid email",
+      success: false,
     };
   }
   const user = await getUserFromEmail(email);
   if (user === null) {
     return {
       message: "Account does not exist",
+      success: false,
     };
   }
   // if (clientIP !== null && !ipBucket.consume(clientIP, 1)) {
@@ -116,6 +121,7 @@ export async function loginAction(
   if (!validPassword) {
     return {
       message: "Invalid password",
+      success: false,
     };
   }
   // throttler.reset(userTable.id);
@@ -274,4 +280,5 @@ export async function loginAction(
 
 interface ActionResult {
   message: string;
+  success?: boolean;
 }

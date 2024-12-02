@@ -1,15 +1,15 @@
 interface EmailTemplateProps {
-  otp: string;
+  code: string;
   verificationLink: string;
 }
 
 export default function EmailTemplate({
-  otp,
+  code,
   verificationLink,
 }: EmailTemplateProps) {
   return `
     <!DOCTYPE html>
-    <html lang="fa">
+    <html lang="fa" dir="rtl">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,10 +23,10 @@ export default function EmailTemplate({
           <div style="font-size: 16px; line-height: 1.6; color: #555; margin-bottom: 30px;">
             <p>سلام،</p>
             <p>این ایمیل برای تایید حساب کاربری شما در جابزی ارسال شده است.</p>
-            <p>برای تکمیل فرایند ثبت‌نام، از کد زیر استفاده کنید:</p>
+            <p>برای تکمیل فرایند ثبت‌ نام، از کد زیر استفاده کنید:</p>
           </div>
           <div style="text-align: center; margin: 30px 0;">
-            <span style="display: inline-block; font-size: 32px; font-weight: bold; color: #ffffff; background-color: #007bff; padding: 15px 30px; border-radius: 8px; letter-spacing: 4px;">${otp}</span>
+            <span style="display: inline-block; font-size: 32px; font-weight: bold; color: #ffffff; background-color: #007bff; padding: 15px 30px; border-radius: 8px; letter-spacing: 4px;">${code}</span>
           </div>
           <p style="text-align: center; font-size: 16px; margin-bottom: 20px;">یا می‌توانید با کلیک بر روی دکمه زیر، حساب کاربری خود را تایید کنید:</p>
           <div style="text-align: center; margin-top: 30px;">

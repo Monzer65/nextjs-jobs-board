@@ -14,13 +14,15 @@ const passwordResetSessionTable = pgTable("password_reset_session", {
   userId: integer("user_id")
     .notNull()
     .references(() => userTable.id),
-  email: varchar("email").notNull(),
+  email: varchar("email"),
+  phone: varchar("phone"),
   code: varchar("code").notNull(),
   expiresAt: timestamp("expires_at", {
     withTimezone: true,
     mode: "date",
   }).notNull(),
   emailVerified: boolean("email_verified").notNull().default(false),
+  phoneVerified: boolean("phone_verified").notNull().default(false),
   twoFactorVerified: boolean("two_factor_verified").notNull().default(false),
 });
 

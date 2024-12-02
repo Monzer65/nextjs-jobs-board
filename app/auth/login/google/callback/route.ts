@@ -10,6 +10,7 @@ import {
   setSessionTokenCookie,
 } from "@/lib/server/session";
 import { ObjectParser } from "@pilcrowjs/object-parser";
+import { generateRandomPassword, generateRandomUsername } from "@/lib/utils";
 
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
@@ -67,11 +68,14 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
 
-  // TODO: Replace this with your own DB query.
+  const randomUsername = generateRandomUsername();
+  const username = `user_${randomUsername}`;
+  const randomPassword = generateRandomPassword();
+
   const user = await createUser(
     email,
-    name.replace(/\s/g, ""),
-    "password",
+    username,
+    randomPassword,
     name,
     googleUserId,
     picture

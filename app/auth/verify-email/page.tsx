@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   EmailVerificationForm,
-  ResendEmailVerificationCodeForm,
+  // ResendEmailVerificationCodeForm,
 } from "./components";
 
 import { getCurrentSession } from "@/lib/server/session";
@@ -10,7 +10,7 @@ import { globalGETRateLimit } from "@/lib/server/request";
 import { getUserEmailVerificationRequest } from "@/lib/server/email-verification";
 import { cookies } from "next/headers";
 
-export default async function Page() {
+export default async function VerifyEmailPage() {
   if (!globalGETRateLimit()) {
     return "Too many requests";
   }
@@ -36,8 +36,8 @@ export default async function Page() {
         {/* {verificationRequest?.email ?? user.email}. */}
       </p>
       <EmailVerificationForm />
-      <ResendEmailVerificationCodeForm />
-      <Link href='/settings'>Change your email</Link>
+      {/* <ResendEmailVerificationCodeForm /> */}
+      <Link href='/auth/settings'>Change your email</Link>
     </>
   );
 }

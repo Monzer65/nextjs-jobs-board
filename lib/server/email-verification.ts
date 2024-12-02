@@ -184,7 +184,10 @@ export const getCurrentUserEmailVerificationRequest = cache(async () => {
   return request;
 });
 
-const sendVerificationEmailBucket = new ExpiringTokenBucket(1, 60);
+export const sendVerificationEmailBucket = new ExpiringTokenBucket<number>(
+  3,
+  60 * 10
+);
 
 export interface EmailVerificationRequest {
   id: string;

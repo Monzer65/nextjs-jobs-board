@@ -1,56 +1,128 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { startTransition, useState } from "react";
+import { useActionState } from "react";
 import { loginAction } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, LogIn } from "lucide-react";
 
 const initialState = {
   message: "",
+  success: false,
 };
 
 export function LoginForm() {
-  const [state, action] = useActionState(loginAction, initialState);
+  const [state, action, isPending] = useActionState(loginAction, initialState);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsLoading(true);
+    startTransition(() => {
+      action(new FormData(event.currentTarget));
+    });
+    setIsLoading(false);
+  };
 
   return (
-    <form action={action}>
-      <label htmlFor='form-login.email'>Email</label>
-      <input
-        type='email'
-        id='form-login.email'
-        name='email'
-        autoComplete='username'
-        required
-      />
-      <br />
-      <label htmlFor='form-login.password'>Password</label>
-      <input
-        type='password'
-        id='form-login.password'
-        name='password'
-        autoComplete='current-password'
-        required
-      />
-      <br />
-      <button>Continue</button>
-      <p>{state.message}</p>
+    <form action={action} onSubmit={handleSubmit} className='space-y-4'>
+      <div className='space-y-2'>
+        <Label htmlFor='email'>ایمیل</Label>
+        <Input
+          id='email'
+          name='email'
+          type='email'
+          autoComplete='username'
+          required
+          placeholder='ایمیل خود را وارد کنید'
+        />
+      </div>
+      <div className='space-y-2'>
+        <Label htmlFor='password'>پسورد</Label>
+        <Input
+          id='password'
+          name='password'
+          type='password'
+          autoComplete='current-password'
+          required
+          placeholder='پسورد خود را وارد کنید'
+        />
+      </div>
+      <Button type='submit' className='w-full' disabled={isPending}>
+        {isPending ? (
+          <Loader2 className='h-4 w-4 animate-spin' />
+        ) : (
+          <LogIn className='h-4 w-4 rotate-180' />
+        )}
+        {isPending ? "درحال بررسی..." : "ورود"}
+      </Button>
+      {state.message && (
+        <Alert
+          variant={state.success ? "default" : "destructive"}
+          className='mt-4'
+        >
+          <AlertDescription>{state.message}</AlertDescription>
+        </Alert>
+      )}
     </form>
   );
 }
 
-export function PasskeyLoginButton() {
-  const [message, setMessage] = useState("");
-  return (
-    <>
-      <button
-        onClick={async () => {
-          setMessage("result");
-        }}
-      >
-        Sign in with passkey
-      </button>
-      <p>{message}</p>
-    </>
-  );
-}
+// import { useActionState, useState } from "react";
+// import { loginAction } from "./actions";
+
+// const initialState = {
+//   message: "",
+// };
+
+// export function LoginForm() {
+//   const [state, action] = useActionState(loginAction, initialState);
+
+//   return (
+//     <form action={action}>
+//       <label htmlFor='form-login.email'>Email</label>
+//       <input
+//         type='email'
+//         id='form-login.email'
+//         name='email'
+//         autoComplete='username'
+//         required
+//       />
+//       <br />
+//       <label htmlFor='form-login.password'>Password</label>
+//       <input
+//         type='password'
+//         id='form-login.password'
+//         name='password'
+//         autoComplete='current-password'
+//         required
+//       />
+//       <br />
+//       <button>Continue</button>
+//       <p>{state.message}</p>
+//     </form>
+//   );
+// }
+
+// export function PasskeyLoginButton() {
+//   const [message, setMessage] = useState("");
+//   return (
+//     <>
+//       <button
+//         onClick={async () => {
+//           setMessage("result");
+//         }}
+//       >
+//         Sign in with passkey
+//       </button>
+//       <p>{message}</p>
+//     </>
+//   );
+// }
 
 // import {
 //   startTransition,

@@ -7,21 +7,28 @@ import { cookies } from "next/headers";
 
 import type { User } from "./user";
 import { passwordResetSessionTable, userTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import totpCredentialTable from "@/db/schema/totpCredential";
+import passkeyCredentialTable from "@/db/schema/passkeyCredential";
+import securityKeyCredentialTable from "@/db/schema/securityCredential";
+import { cache } from "react";
 
 export async function createPasswordResetSession(
   token: string,
   userId: number,
-  email: string
+  email?: string,
+  phone?: string
 ): Promise<PasswordResetSession> {
   const sessionId = encodeHexLowerCase(sha256(new TextEncoder().encode(token)));
   const session: PasswordResetSession = {
     id: sessionId,
     userId,
     email,
+    phone,
     code: generateRandomOTP(),
     expiresAt: new Date(Date.now() + 1000 * 60 * 10),
     emailVerified: false,
+    phoneVerified: false,
     twoFactorVerified: false,
   };
 
@@ -36,24 +43,48 @@ export async function validatePasswordResetSessionToken(
   const sessionId = encodeHexLowerCase(sha256(new TextEncoder().encode(token)));
   const rows = await db
     .select({
-      passwordResetSessionId: passwordResetSessionTable.id,
-      passwordResetSessionUserId: passwordResetSessionTable.userId,
-      passwordResetSessionEmail: passwordResetSessionTable.email,
-      passwordResetSessionCode: passwordResetSessionTable.code,
-      passwordResetSessionExpiresAt: passwordResetSessionTable.expiresAt,
-      passwordResetSessionEmailVerified:
-        passwordResetSessionTable.emailVerified,
-      passwordResetSessionTwoFactorVerified:
-        passwordResetSessionTable.twoFactorVerified,
-      userId: userTable.id,
+      sessionId: passwordResetSessionTable.id,
+      userId: passwordResetSessionTable.userId,
+      email: passwordResetSessionTable.email,
+      phone: passwordResetSessionTable.phone,
+      code: passwordResetSessionTable.code,
+      expiresAt: passwordResetSessionTable.expiresAt,
+      emailVerified: passwordResetSessionTable.emailVerified,
+      phoneVerified: passwordResetSessionTable.phoneVerified,
+      twoFactorVerified: passwordResetSessionTable.twoFactorVerified,
+      userIdFromUser: userTable.id,
       userEmail: userTable.email,
-      userUsername: userTable.username,
+      userPhone: userTable.phone,
+      username: userTable.username,
+      userFullname: userTable.fullname,
       userEmailVerified: userTable.emailVerified,
-      userTotpKey: userTable.totpKey,
+      userPhoneVerified: userTable.phoneVerified,
+      registeredTOTP:
+        sql`CASE WHEN ${totpCredentialTable.id} IS NOT NULL THEN 1 ELSE 0 END`.as(
+          "registeredTOTP"
+        ),
+      registeredPasskey:
+        sql`CASE WHEN ${passkeyCredentialTable.id} IS NOT NULL THEN 1 ELSE 0 END`.as(
+          "registeredPasskey"
+        ),
+      registeredSecurityKey:
+        sql`CASE WHEN ${securityKeyCredentialTable.id} IS NOT NULL THEN 1 ELSE 0 END`.as(
+          "registeredSecurityKey"
+        ),
     })
     .from(passwordResetSessionTable)
-    .innerJoin(userTable, eq(userTable.id, passwordResetSessionTable.userId))
-    .where(eq(passwordResetSessionTable.id, sessionId));
+    .innerJoin(userTable, eq(passwordResetSessionTable.userId, userTable.id))
+    .leftJoin(totpCredentialTable, eq(userTable.id, totpCredentialTable.userId))
+    .leftJoin(
+      passkeyCredentialTable,
+      eq(userTable.id, passkeyCredentialTable.userId)
+    )
+    .leftJoin(
+      securityKeyCredentialTable,
+      eq(userTable.id, securityKeyCredentialTable.userId)
+    )
+    .where(eq(passwordResetSessionTable.id, sessionId))
+    .limit(1);
 
   if (rows.length < 1) {
     return { session: null, user: null };
@@ -62,23 +93,35 @@ export async function validatePasswordResetSessionToken(
 
   // Mapping the session data
   const session: PasswordResetSession = {
-    id: row.passwordResetSessionId,
-    userId: row.passwordResetSessionUserId,
-    email: row.passwordResetSessionEmail,
-    code: row.passwordResetSessionCode,
-    expiresAt: new Date(row.passwordResetSessionExpiresAt),
-    emailVerified: Boolean(row.passwordResetSessionEmailVerified),
-    twoFactorVerified: Boolean(row.passwordResetSessionTwoFactorVerified),
+    id: row.sessionId,
+    userId: row.userId,
+    email: row.email || undefined,
+    phone: row.phone || undefined,
+    code: row.code,
+    expiresAt: new Date(row.expiresAt),
+    emailVerified: !!row.emailVerified,
+    phoneVerified: !!row.phoneVerified,
+    twoFactorVerified: !!row.twoFactorVerified,
   };
 
-  // Mapping the user data
   const user: User = {
-    id: row.userId,
-    email: row.userEmail || "",
-    username: row.userUsername,
-    emailVerified: Boolean(row.userEmailVerified),
-    registered2FA: Boolean(row.userTotpKey),
+    id: row.userIdFromUser,
+    email: row.userEmail || undefined,
+    phone: row.userPhone || undefined,
+    username: row.username,
+    fullname: row.userFullname || undefined,
+    emailVerified: !!row.userEmailVerified,
+    phoneVerified: !!row.userPhoneVerified,
+    registeredTOTP: !!row.registeredTOTP,
+    registeredPasskey: !!row.registeredPasskey,
+    registeredSecurityKey: !!row.registeredSecurityKey,
+    registered2FA: !!(
+      row.registeredTOTP ||
+      row.registeredPasskey ||
+      row.registeredSecurityKey
+    ),
   };
+
   if (Date.now() >= session.expiresAt.getTime()) {
     await db
       .delete(passwordResetSessionTable)
@@ -95,6 +138,16 @@ export async function setPasswordResetSessionAsEmailVerified(
     .update(passwordResetSessionTable)
     .set({
       emailVerified: true,
+    })
+    .where(eq(passwordResetSessionTable.id, sessionId));
+}
+export async function setPasswordResetSessionAsPhoneVerified(
+  sessionId: string
+): Promise<void> {
+  await db
+    .update(passwordResetSessionTable)
+    .set({
+      phoneVerified: true,
     })
     .where(eq(passwordResetSessionTable.id, sessionId));
 }
@@ -130,6 +183,18 @@ export async function validatePasswordResetSessionRequest(): Promise<PasswordRes
   return result;
 }
 
+export const getCurrentPasswordResetSession = cache(async () => {
+  const token = (await cookies()).get("password_reset_session")?.value ?? null;
+  if (token === null) {
+    return { session: null, user: null };
+  }
+  const result = validatePasswordResetSessionToken(token);
+  if ((await result).session === null) {
+    deletePasswordResetSessionTokenCookie();
+  }
+  return result;
+});
+
 export async function setPasswordResetSessionTokenCookie(
   token: string,
   expiresAt: Date
@@ -160,14 +225,22 @@ export async function sendPasswordResetEmail(
 ): Promise<void> {
   console.log(`To ${email}: Your reset code is ${code}`);
 }
+export async function sendPasswordResetPhone(
+  phone: string,
+  code: string
+): Promise<void> {
+  console.log(`To ${phone}: Your reset code is ${code}`);
+}
 
 export interface PasswordResetSession {
   id: string;
   userId: number;
-  email: string;
+  email?: string;
+  phone?: string;
   expiresAt: Date;
   code: string;
   emailVerified: boolean;
+  phoneVerified: boolean;
   twoFactorVerified: boolean;
 }
 

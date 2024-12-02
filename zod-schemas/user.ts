@@ -18,7 +18,7 @@ const messages = {
 const emailRegex = /^.+@.+\..+$/;
 const phoneRegex = /^(?:\+98|0098|98|0)?(9[0-9]{9})$/;
 const usernameRegex =
-  /^[a-zA-Z0-9_\u0600-\u06FF\uFB8A\u067E\u0686\u06AF\u06F0-\u06F9\u0660-\u0669]+$/;
+  /^[^\s]+[a-zA-Z0-9_.-\u0600-\u06FF\uFB8A\u067E\u0686\u06AF\u06F0-\u06F9\u0660-\u0669]*$/;
 
 export const isValiEmail = (email: string) => {
   return emailRegex.test(email);

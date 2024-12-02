@@ -11,7 +11,10 @@ import { cache } from "react";
 import type { User } from "./user";
 import sessionTable from "@/db/schema/session";
 import userTable from "@/db/schema/user";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import totpCredentialTable from "@/db/schema/totpCredential";
+import securityKeyCredentialTable from "@/db/schema/securityCredential";
+import passkeyCredentialTable from "@/db/schema/passkeyCredential";
 
 export async function validateSessionToken(
   token: string
@@ -23,20 +26,43 @@ export async function validateSessionToken(
       sessionId: sessionTable.id,
       sessionUserId: sessionTable.userId,
       sessionExpiresAt: sessionTable.expiresAt,
-      session2FAVerified: sessionTable.twoFactorVerified,
+      twoFactorVerified: sessionTable.twoFactorVerified,
       userId: userTable.id,
-      userEmail: userTable.email,
-      userUsername: userTable.username,
-      userEmailVerified: userTable.emailVerified,
-      userRegistered2FA: userTable.registered2FA,
-      userHasTOTPKey: userTable.totpKey,
-      googleId: userTable.googleId,
-      name: userTable.name,
-      picture: userTable.picture,
+      email: userTable.email,
+      phone: userTable.phone,
+      username: userTable.username,
+      emailVerified: userTable.emailVerified,
+      phoneVerified: userTable.phoneVerified,
+      registered2fa: userTable.registered2FA,
+      registeredTOTP:
+        sql`CASE WHEN ${totpCredentialTable.id} IS NOT NULL THEN 1 ELSE 0 END`.as(
+          "registeredTOTP"
+        ),
+      registeredSecurityKey:
+        sql`CASE WHEN ${securityKeyCredentialTable.id} IS NOT NULL THEN 1 ELSE 0 END`.as(
+          "registeredSecurityKey"
+        ),
+      registeredPasskey:
+        sql`CASE WHEN ${passkeyCredentialTable.id} IS NOT NULL THEN 1 ELSE 0 END`.as(
+          "registeredPasskey"
+        ),
     })
     .from(sessionTable)
-    .innerJoin(userTable, eq(userTable.id, sessionTable.userId))
-    .where(eq(sessionTable.id, sessionId));
+    .innerJoin(userTable, eq(sessionTable.userId, userTable.id))
+    .leftJoin(
+      totpCredentialTable,
+      eq(sessionTable.userId, totpCredentialTable.userId)
+    )
+    .leftJoin(
+      passkeyCredentialTable,
+      eq(userTable.id, passkeyCredentialTable.userId)
+    )
+    .leftJoin(
+      securityKeyCredentialTable,
+      eq(userTable.id, securityKeyCredentialTable.userId)
+    )
+    .where(eq(sessionTable.id, sessionId))
+    .limit(1);
 
   if (rows.length < 1) {
     return { session: null, user: null };
@@ -47,18 +73,29 @@ export async function validateSessionToken(
     id: row.sessionId,
     userId: row.sessionUserId,
     expiresAt: new Date(row.sessionExpiresAt),
-    twoFactorVerified: Boolean(row.session2FAVerified),
+    twoFactorVerified: Boolean(row.twoFactorVerified),
   };
   const user: User = {
     id: row.userId,
-    email: row.userEmail || "",
-    username: row.userUsername,
-    emailVerified: Boolean(row.userEmailVerified),
-    registered2FA: Boolean(row.userRegistered2FA),
-    googleId: row.googleId || "",
-    name: row.name || "",
-    picture: row.picture || "",
+    email: row.email ?? undefined,
+    phone: row.phone ?? undefined,
+    fullname: row.username,
+    username: row.username,
+    emailVerified: row.emailVerified,
+    phoneVerified: row.phoneVerified,
+    registered2FA: row.registered2fa,
+    registeredTOTP: Boolean(row.registeredTOTP),
+    registeredPasskey: Boolean(row.registeredPasskey),
+    registeredSecurityKey: Boolean(row.registeredSecurityKey),
   };
+
+  if (
+    user.registeredPasskey ||
+    user.registeredSecurityKey ||
+    user.registeredTOTP
+  ) {
+    user.registered2FA = true;
+  }
 
   if (Date.now() >= session.expiresAt.getTime()) {
     await db.delete(sessionTable).where(eq(sessionTable.id, session.id));
@@ -66,10 +103,7 @@ export async function validateSessionToken(
   }
 
   if (Date.now() >= session.expiresAt.getTime() - 1000 * 60 * 60 * 24 * 15) {
-    // Add 30 days (in milliseconds)
     session.expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
-
-    // Update the session expiration in the database
     await db
       .update(sessionTable)
       .set({ expiresAt: new Date(Math.floor(session.expiresAt.getTime())) })
@@ -78,6 +112,7 @@ export async function validateSessionToken(
 
   return { session, user };
 }
+
 export const getCurrentSession = cache(
   async (): Promise<SessionValidationResult> => {
     const token = (await cookies()).get("session")?.value ?? null;

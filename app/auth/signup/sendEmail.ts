@@ -1,11 +1,11 @@
 import nodemailer from "nodemailer";
 import EmailTemplate from "./EmailTemplate";
 
-const sendVerificationEmail = async (contact: string, otp: string) => {
+const sendVerificationEmail = async (contact: string, code: string) => {
   try {
     const verificationLink = `http://localhost:3000/auth/verify?email=${encodeURIComponent(
       contact
-    )}&otp=${otp}`;
+    )}&code=${code}`;
 
     const transporter = nodemailer.createTransport({
       host: "smtp.zoho.com",
@@ -16,7 +16,7 @@ const sendVerificationEmail = async (contact: string, otp: string) => {
       },
     });
 
-    const emailHtml = EmailTemplate({ otp, verificationLink });
+    const emailHtml = EmailTemplate({ code, verificationLink });
 
     const info = await transporter.sendMail({
       from: `"جابزی 👻" <exclusiveautoparts.shop@zohomail.com>`,
