@@ -1,28 +1,33 @@
 "use server";
 
-import { eq, or } from "drizzle-orm";
-import { db } from "@/db";
-import { confirmationSchema, signupSchema } from "@/zod-schemas/user";
-import { redirect } from "next/navigation";
+// import { eq, or } from "drizzle-orm";
+// import { db } from "@/db";
+import { signupSchema } from "@/zod-schemas/user";
+// import { redirect } from "next/navigation";
 import { globalPOSTRateLimit } from "@/lib/server/request";
 import {
   createSession,
   generateSessionToken,
   setSessionTokenCookie,
 } from "@/lib/server/session";
-import { userTable } from "@/db/schema/user";
-import { verifyPasswordStrength } from "@/lib/server/password";
+// import { userTable } from "@/db/schema/user";
+// import { verifyPasswordStrength } from "@/lib/server/password";
 import {
   createEmailVerificationRequest,
   sendVerificationEmail,
   setEmailVerificationRequestCookie,
 } from "@/lib/server/email-verification";
-import { createUser } from "@/lib/server/user";
+import { checkUsernameAvailability, createUser } from "@/lib/server/user";
 import type { SessionFlags } from "@/lib/server/session";
 import { RefillingTokenBucket } from "@/lib/server/rate-limit";
 import { headers } from "next/headers";
 import { checkEmailAvailability } from "@/lib/server/email";
 import { checkPhoneAvailability } from "@/lib/server/phone";
+import {
+  createPhoneVerificationRequest,
+  sendVerificationSMS,
+  setPhoneVerificationRequestCookie,
+} from "@/lib/server/phone-verification";
 
 export interface FormState {
   message: string;
@@ -31,13 +36,13 @@ export interface FormState {
   success?: boolean;
 }
 
-const ipBucket = new RefillingTokenBucket<string>(3, 10);
+const ipBucket = new RefillingTokenBucket<string>(3, 60);
 
 export async function signupAction(
   prevState: FormState,
   data: FormData
 ): Promise<FormState> {
-  if (!globalPOSTRateLimit()) {
+  if (!(await globalPOSTRateLimit())) {
     return {
       message: "تعداد درخواست های شما بیش از حد مجاز است",
     };
@@ -57,6 +62,7 @@ export async function signupAction(
   const fields: Record<string, string> = Object.fromEntries(
     Object.entries(formData).map(([key, value]) => [key, value.toString()])
   );
+  console.log("fields", fields);
 
   if (!parsed.success) {
     console.error("Validation Error:", parsed.error.issues);
@@ -68,18 +74,32 @@ export async function signupAction(
     };
   }
 
-  const { username, email, phone, password, contactMethod } = parsed.data;
+  const { username, email, phone, password } = parsed.data;
 
   try {
+    if (email && phone) {
+      return {
+        message:
+          "لطفا فقط یکی از فیلد های ایمیل یا تلفن را وارد کنید و نه هردو",
+      };
+    }
+
+    const usernameAvailable = await checkUsernameAvailability(username);
+    if (!usernameAvailable) {
+      return {
+        message: "این نام کاربری قبلا ثبت شده است",
+      };
+    }
+
     if (email && !phone) {
-      const emailAvailable = checkEmailAvailability(email);
+      const emailAvailable = await checkEmailAvailability(email);
       if (!emailAvailable) {
         return {
           message: "این ایمیل قبلا ثبت شده است",
         };
       }
     } else if (phone && !email) {
-      const phoneAvailable = checkPhoneAvailability(phone);
+      const phoneAvailable = await checkPhoneAvailability(phone);
       if (!phoneAvailable) {
         return {
           message: "این تلفن قبلا ثبت شده است",
@@ -99,16 +119,37 @@ export async function signupAction(
       };
     }
 
-    const user = await createUser(email || "", username, password);
-    const emailVerificationRequest = await createEmailVerificationRequest(
-      user.id,
-      user.email || ""
+    const user = await createUser(
+      username,
+      password,
+      email!,
+      phone!,
+      undefined,
+      undefined,
+      undefined
     );
-    await sendVerificationEmail(
-      emailVerificationRequest.email,
-      emailVerificationRequest.code
-    );
-    await setEmailVerificationRequestCookie(emailVerificationRequest);
+
+    if (email && !phone) {
+      const emailVerificationRequest = await createEmailVerificationRequest(
+        user.id,
+        user.email!
+      );
+      await sendVerificationEmail(
+        emailVerificationRequest.email,
+        emailVerificationRequest.code
+      );
+      await setEmailVerificationRequestCookie(emailVerificationRequest);
+    } else if (phone && !email) {
+      const phoneVerificationRequest = await createPhoneVerificationRequest(
+        user.id,
+        user.phone!
+      );
+      await sendVerificationSMS(
+        phoneVerificationRequest.phone,
+        phoneVerificationRequest.code
+      );
+      await setPhoneVerificationRequestCookie(phoneVerificationRequest);
+    }
 
     const sessionFlags: SessionFlags = {
       twoFactorVerified: false,
@@ -123,56 +164,8 @@ export async function signupAction(
       success: false,
     };
   }
-
-  let queryParam = "";
-
-  if (email) {
-    queryParam = `email=${encodeURIComponent(email)}`;
-  } else if (phone) {
-    queryParam = `phone=${encodeURIComponent(phone)}`;
-  }
-
-  redirect(`/auth/verify?${queryParam}`);
-}
-
-async function checkExistingUser(
-  contactMethod: string,
-  email: string | undefined,
-  phone: string | undefined,
-  fields: Record<string, string>
-): Promise<FormState | null> {
-  let existingUser;
-  let verifiedUser = false;
-
-  if (contactMethod === "email" && email) {
-    existingUser = await db
-      .select()
-      .from(userTable)
-      .where(eq(userTable.email, email));
-    verifiedUser =
-      existingUser.length > 0 && existingUser[0].emailVerified === true;
-  } else if (contactMethod === "phone" && phone) {
-    existingUser = await db
-      .select()
-      .from(userTable)
-      .where(eq(userTable.phone, phone));
-    verifiedUser =
-      existingUser.length > 0 && existingUser[0].phoneVerified === true;
-  }
-
-  if (existingUser && existingUser.length > 0) {
-    return verifiedUser
-      ? {
-          message: "کاربر با این شماره موبایل یا ایمیل وجود دارد",
-          fields,
-          success: false,
-        }
-      : {
-          message: "کاربر قبلا ثبت نام کرده اما هنوز تایید نشده است",
-          fields,
-          success: false,
-        };
-  }
-
-  return null;
+  return {
+    message: "ثبت نام با موفقیت انجام شد",
+    success: true,
+  };
 }

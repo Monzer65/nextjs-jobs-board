@@ -8,7 +8,7 @@ import {
 import userTable from "./user";
 import { InferSelectModel, relations } from "drizzle-orm";
 
-const phoneVerificationTable = pgTable("phone_verification", {
+const phoneVerificationRequestTable = pgTable("phone_verification", {
   id: text("id").primaryKey(),
   userId: integer("user_id")
     .notNull()
@@ -21,16 +21,18 @@ const phoneVerificationTable = pgTable("phone_verification", {
   }).notNull(),
 });
 
-export type PhoneVerification = InferSelectModel<typeof phoneVerificationTable>;
+export type PhoneVerification = InferSelectModel<
+  typeof phoneVerificationRequestTable
+>;
 
-export const phoneVerificationTableRelations = relations(
-  phoneVerificationTable,
+export const phoneVerificationRequestTableRelations = relations(
+  phoneVerificationRequestTable,
   ({ one }) => ({
     user: one(userTable, {
-      fields: [phoneVerificationTable.userId],
+      fields: [phoneVerificationRequestTable.userId],
       references: [userTable.id],
     }),
   })
 );
 
-export default phoneVerificationTable;
+export default phoneVerificationRequestTable;

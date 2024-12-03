@@ -11,10 +11,10 @@ import securityKeyCredentialTable from "@/db/schema/securityCredential";
 
 export interface User {
   id: number;
-  email?: string;
-  phone?: string;
+  email?: string | null;
+  phone?: string | null;
   username: string;
-  fullname?: string;
+  fullname?: string | null;
   emailVerified: boolean;
   phoneVerified: boolean;
   registeredTOTP: boolean;
@@ -36,13 +36,13 @@ export async function createUser(
   const recoveryCode = generateRandomRecoveryCode();
   const encryptedRecoveryCode = encryptString(recoveryCode);
   const values = {
-    email: email || null,
-    phone: phone || null,
+    email: email ?? null,
+    phone: phone ?? null,
     username,
     password: passwordHash,
-    fullname: fullname || null,
-    googleId: googleId || null,
-    picture: picture || null,
+    fullname: fullname ?? null,
+    googleId,
+    picture,
     recoveryCode: encryptedRecoveryCode,
     emailVerified: false,
     phoneVerified: false,
@@ -60,10 +60,10 @@ export async function createUser(
 
   const user: User = {
     id: rows[0].id,
-    email: rows[0].email || undefined,
-    phone: rows[0].phone || undefined,
+    email: rows[0].email,
+    phone: rows[0].phone,
     username: rows[0].username,
-    fullname: rows[0].fullname || undefined,
+    fullname: rows[0].fullname,
     emailVerified: rows[0].emailVerified,
     phoneVerified: rows[0].phoneVerified,
     registeredTOTP: rows[0].registeredTOTP,
@@ -375,4 +375,16 @@ export async function getUserFromGoogleId(
   };
 
   return user;
+}
+
+export async function checkUsernameAvailability(
+  username: string
+): Promise<boolean> {
+  const results = await db
+    .select({ id: userTable.id }) // Only select necessary fields
+    .from(userTable)
+    .where(eq(userTable.username, username))
+    .limit(1); // Fetch at most 1 record
+
+  return results.length === 0; // Username is available if no rows are returned
 }

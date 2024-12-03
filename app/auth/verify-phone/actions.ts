@@ -1,28 +1,28 @@
 "use server";
 
 import {
-  createEmailVerificationRequest,
-  deleteEmailVerificationRequestCookie,
-  deleteUserEmailVerificationRequest,
-  getCurrentUserEmailVerificationRequest,
-  sendVerificationEmail,
-  sendVerificationEmailBucket,
-  setEmailVerificationRequestCookie,
-} from "@/lib/server/email-verification";
+  createPhoneVerificationRequest,
+  deletePhoneVerificationRequestCookie,
+  deleteUserPhoneVerificationRequest,
+  getCurrentUserPhoneVerificationRequest,
+  sendVerificationSMS,
+  sendVerificationPhoneBucket,
+  setPhoneVerificationRequestCookie,
+} from "@/lib/server/phone-verification";
 import { invalidateUserPasswordResetSessions } from "@/lib/server/password-reset";
 import { ExpiringTokenBucket } from "@/lib/server/rate-limit";
 import { getCurrentSession } from "@/lib/server/session";
-import { updateUserEmailAndSetEmailAsVerified } from "@/lib/server/user";
+import { updateUserPhoneAndSetPhoneAsVerified } from "@/lib/server/user";
 import { redirect } from "next/navigation";
 import { globalPOSTRateLimit } from "@/lib/server/request";
 
 const bucket = new ExpiringTokenBucket<number>(5, 60 * 30);
 
-export async function verifyEmailAction(
+export async function verifyPhoneAction(
   _prev: ActionResult,
   formData: FormData
 ): Promise<ActionResult> {
-  if (!globalPOSTRateLimit()) {
+  if (!(await globalPOSTRateLimit())) {
     return {
       message: "Too many requests",
     };
@@ -45,7 +45,7 @@ export async function verifyEmailAction(
     };
   }
 
-  let verificationRequest = await getCurrentUserEmailVerificationRequest();
+  let verificationRequest = await getCurrentUserPhoneVerificationRequest();
   if (verificationRequest === null) {
     return {
       message: "Not authenticated",
@@ -68,12 +68,12 @@ export async function verifyEmailAction(
     };
   }
   if (Date.now() >= verificationRequest.expiresAt.getTime()) {
-    verificationRequest = await createEmailVerificationRequest(
+    verificationRequest = await createPhoneVerificationRequest(
       verificationRequest.userId,
-      verificationRequest.email
+      verificationRequest.phone
     );
-    await sendVerificationEmail(
-      verificationRequest.email,
+    await sendVerificationSMS(
+      verificationRequest.phone,
       verificationRequest.code
     );
     return {
@@ -86,20 +86,20 @@ export async function verifyEmailAction(
       message: "Incorrect code.",
     };
   }
-  await deleteUserEmailVerificationRequest(user.id);
+  await deleteUserPhoneVerificationRequest(user.id);
   await invalidateUserPasswordResetSessions(user.id);
-  await updateUserEmailAndSetEmailAsVerified(
+  await updateUserPhoneAndSetPhoneAsVerified(
     user.id,
-    verificationRequest.email
+    verificationRequest.phone
   );
-  await deleteEmailVerificationRequestCookie();
+  await deletePhoneVerificationRequestCookie();
   if (!user.registered2FA) {
     return redirect("/auth/2fa/setup");
   }
   return redirect("/");
 }
 
-export async function resendEmailVerificationCodeAction(): Promise<ActionResult> {
+export async function resendPhoneVerificationCodeAction(): Promise<ActionResult> {
   if (!globalPOSTRateLimit()) {
     return {
       message: "Too many requests",
@@ -117,49 +117,49 @@ export async function resendEmailVerificationCodeAction(): Promise<ActionResult>
       message: "Forbidden",
     };
   }
-  if (!sendVerificationEmailBucket.check(user.id, 1)) {
+  if (!sendVerificationPhoneBucket.check(user.id, 1)) {
     return {
       message: "Too many requests",
     };
   }
-  let verificationRequest = await getCurrentUserEmailVerificationRequest();
+  let verificationRequest = await getCurrentUserPhoneVerificationRequest();
 
   if (verificationRequest === null) {
-    if (user.emailVerified) {
+    if (user.phoneVerified) {
       return {
         message: "Forbidden",
       };
     }
-    if (!sendVerificationEmailBucket.consume(user.id, 1)) {
+    if (!sendVerificationPhoneBucket.consume(user.id, 1)) {
       return {
         message: "Too many requests",
       };
     }
-    if (user.email === null || user.email === undefined) {
+    if (user.phone === null || user.phone === undefined) {
       return {
-        message: "User email is missing",
+        message: "User phone is missing",
       };
     }
-    verificationRequest = await createEmailVerificationRequest(
+    verificationRequest = await createPhoneVerificationRequest(
       user.id,
-      user.email
+      user.phone
     );
   } else {
-    if (!sendVerificationEmailBucket.consume(user.id, 1)) {
+    if (!sendVerificationPhoneBucket.consume(user.id, 1)) {
       return {
         message: "Too many requests",
       };
     }
-    verificationRequest = await createEmailVerificationRequest(
+    verificationRequest = await createPhoneVerificationRequest(
       user.id,
-      verificationRequest.email
+      verificationRequest.phone
     );
   }
-  await sendVerificationEmail(
-    verificationRequest.email,
+  await sendVerificationSMS(
+    verificationRequest.phone,
     verificationRequest.code
   );
-  await setEmailVerificationRequestCookie(verificationRequest);
+  await setPhoneVerificationRequestCookie(verificationRequest);
   return {
     message: "A new code was sent to your inbox.",
   };

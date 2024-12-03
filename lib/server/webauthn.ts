@@ -1,5 +1,3 @@
-"use server";
-
 import { encodeHexLowerCase } from "@oslojs/encoding";
 import { db } from "@/db";
 import passkeyCredentialTable from "@/db/schema/passkeyCredential";
@@ -24,6 +22,8 @@ export function verifyWebAuthnChallenge(challenge: Uint8Array): boolean {
 export async function getUserPasskeyCredentials(
   userId: number
 ): Promise<WebAuthnUserCredential[]> {
+  "use server";
+
   const rows = await db
     .select()
     .from(passkeyCredentialTable)
@@ -48,6 +48,8 @@ export async function getUserPasskeyCredentials(
 export async function getPasskeyCredential(
   credentialId: Uint8Array
 ): Promise<WebAuthnUserCredential | null> {
+  "use server";
+
   const rows = await db
     .select()
     .from(passkeyCredentialTable)
@@ -70,6 +72,8 @@ export async function getUserPasskeyCredential(
   userId: number,
   credentialId: Uint8Array
 ): Promise<WebAuthnUserCredential | null> {
+  "use server";
+
   const rows = await db
     .select()
     .from(passkeyCredentialTable)
@@ -97,6 +101,8 @@ export async function getUserPasskeyCredential(
 export async function createPasskeyCredential(
   credential: WebAuthnUserCredential
 ): Promise<void> {
+  "use server";
+
   await db.insert(passkeyCredentialTable).values({
     id: credential.id,
     userId: credential.userId,
@@ -110,6 +116,8 @@ export async function deleteUserPasskeyCredential(
   userId: number,
   credentialId: Uint8Array
 ): Promise<boolean> {
+  "use server";
+
   const result = await db
     .delete(passkeyCredentialTable)
     .where(
@@ -125,6 +133,8 @@ export async function deleteUserPasskeyCredential(
 export async function getUserSecurityKeyCredentials(
   userId: number
 ): Promise<WebAuthnUserCredential[]> {
+  "use server";
+
   const rows = await db
     .select()
     .from(securityKeyCredentialTable)
@@ -150,6 +160,8 @@ export async function getUserSecurityKeyCredential(
   userId: number,
   credentialId: Uint8Array
 ): Promise<WebAuthnUserCredential | null> {
+  "use server";
+
   const rows = await db
     .select()
     .from(securityKeyCredentialTable)
@@ -175,6 +187,8 @@ export async function getUserSecurityKeyCredential(
 export async function createSecurityKeyCredential(
   credential: WebAuthnUserCredential
 ): Promise<void> {
+  "use server";
+
   await db.insert(securityKeyCredentialTable).values({
     id: credential.id,
     userId: credential.userId,
@@ -188,6 +202,8 @@ export async function deleteUserSecurityKeyCredential(
   userId: number,
   credentialId: Uint8Array
 ): Promise<boolean> {
+  "use server";
+
   const result = await db
     .delete(securityKeyCredentialTable)
     .where(

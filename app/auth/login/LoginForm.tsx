@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useState } from "react";
+import { startTransition } from "react";
 import { useActionState } from "react";
 import { loginAction } from "./actions";
 import { Button } from "@/components/ui/button";
@@ -17,15 +17,12 @@ const initialState = {
 
 export function LoginForm() {
   const [state, action, isPending] = useActionState(loginAction, initialState);
-  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setIsLoading(true);
     startTransition(() => {
       action(new FormData(event.currentTarget));
     });
-    setIsLoading(false);
   };
 
   return (

@@ -1,4 +1,3 @@
-"use server";
 import { generateRandomOTP } from "@/lib/utils";
 import { db } from "@/db";
 import { ExpiringTokenBucket } from "./rate-limit";
@@ -14,6 +13,8 @@ export async function getUserEmailVerificationRequest(
   userId: number,
   id: string
 ): Promise<EmailVerificationRequest | null> {
+  "use server";
+
   const rows = await db
     .select({
       id: emailVerificationRequestTable.id,
@@ -49,6 +50,8 @@ export async function createEmailVerificationRequest(
   userId: number,
   email: string
 ): Promise<EmailVerificationRequest> {
+  "use server";
+
   deleteUserEmailVerificationRequest(userId);
   const idBytes = new Uint8Array(20);
   crypto.getRandomValues(idBytes);
@@ -80,6 +83,8 @@ export async function createEmailVerificationRequest(
 export async function deleteUserEmailVerificationRequest(
   userId: number
 ): Promise<void> {
+  "use server";
+
   await db
     .delete(emailVerificationRequestTable)
     .where(eq(emailVerificationRequestTable.userId, userId));
@@ -177,9 +182,9 @@ export const getCurrentUserEmailVerificationRequest = cache(async () => {
   if (id === null) {
     return null;
   }
-  const request = getUserEmailVerificationRequest(user.id, id);
+  const request = await getUserEmailVerificationRequest(user.id, id);
   if (request === null) {
-    deleteEmailVerificationRequestCookie();
+    await deleteEmailVerificationRequestCookie();
   }
   return request;
 });

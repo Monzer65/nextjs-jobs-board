@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  // resendEmailVerificationCodeAction,
+  resendEmailVerificationCodeAction,
   verifyEmailAction,
 } from "./actions";
 import { useFormState } from "react-dom";
@@ -25,19 +25,19 @@ export function EmailVerificationForm() {
   );
 }
 
-// const resendEmailInitialState = {
-//   message: "",
-// };
+const resendEmailInitialState = {
+  message: "",
+};
 
-// export function ResendEmailVerificationCodeForm() {
-//   const [state, action] = useFormState(
-//     resendEmailVerificationCodeAction,
-//     resendEmailInitialState
-//   );
-//   return (
-//     <form action={action}>
-//       <button>Resend code</button>
-//       <p>{state.message}</p>
-//     </form>
-//   );
-// }
+export function ResendEmailVerificationCodeForm() {
+  const [state, action] = useFormState(
+    resendEmailVerificationCodeAction,
+    resendEmailInitialState
+  );
+  return (
+    <form action={action}>
+      <button>Resend code</button>
+      <p>{state.message}</p>
+    </form>
+  );
+}

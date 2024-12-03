@@ -1,4 +1,3 @@
-"use server";
 import { generateRandomOTP } from "@/lib/utils";
 import { db } from "@/db";
 import { ExpiringTokenBucket } from "./rate-limit";
@@ -13,6 +12,8 @@ export async function getUserPhoneVerificationRequest(
   userId: number,
   id: string
 ): Promise<PhoneVerificationRequest | null> {
+  "use server";
+
   const rows = await db
     .select({
       id: phoneVerificationRequestTable.id,
@@ -48,7 +49,9 @@ export async function createPhoneVerificationRequest(
   userId: number,
   phone: string
 ): Promise<PhoneVerificationRequest> {
-  deleteUserPhoneVerificationRequest(userId);
+  "use server";
+
+  await deleteUserPhoneVerificationRequest(userId);
   const idBytes = new Uint8Array(20);
   crypto.getRandomValues(idBytes);
   const id = encodeBase32LowerCaseNoPadding(idBytes);
@@ -79,18 +82,41 @@ export async function createPhoneVerificationRequest(
 export async function deleteUserPhoneVerificationRequest(
   userId: number
 ): Promise<void> {
+  "use server";
+
   await db
     .delete(phoneVerificationRequestTable)
     .where(eq(phoneVerificationRequestTable.userId, userId));
 }
 
-export async function sendVerificationPhone(
+export async function sendVerificationSMS(
   phone: string,
   code: string
 ): Promise<void> {
-  console.log(`To ${phone}: Your verification code is ${code}`);
+  const SMS_USERNAME = process.env.SMS_USERNAME;
+  const SMS_PASSWORD = process.env.SMS_PASSWORD;
   try {
-    console.log("code sent to the phone:");
+    const url = "https://webone-sms.ir/SMSInOutBox/Send";
+    const data = {
+      UserName: SMS_USERNAME,
+      Password: SMS_PASSWORD,
+      From: "10002147",
+      To: phone,
+      Message: `کد تایید شما ${code} جابزی`,
+    };
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    console.log(response);
+    if (!response.ok) {
+      throw new Error("Failed to send SMS");
+    }
   } catch (error) {
     console.error("Error sending text:", error);
     throw new Error("Error sending verification code to the phone");
@@ -100,6 +126,8 @@ export async function sendVerificationPhone(
 export async function setPhoneVerificationRequestCookie(
   request: PhoneVerificationRequest
 ): Promise<void> {
+  "use server";
+
   (await cookies()).set("phone_verification", request.id, {
     httpOnly: true,
     path: "/",
@@ -110,6 +138,8 @@ export async function setPhoneVerificationRequestCookie(
 }
 
 export async function deletePhoneVerificationRequestCookie(): Promise<void> {
+  "use server";
+
   (await cookies()).set("phone_verification", "", {
     httpOnly: true,
     path: "/",
@@ -128,9 +158,9 @@ export const getCurrentUserPhoneVerificationRequest = cache(async () => {
   if (id === null) {
     return null;
   }
-  const request = getUserPhoneVerificationRequest(user.id, id);
+  const request = await getUserPhoneVerificationRequest(user.id, id);
   if (request === null) {
-    deletePhoneVerificationRequestCookie();
+    await deletePhoneVerificationRequestCookie();
   }
   return request;
 });

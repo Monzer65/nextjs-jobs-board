@@ -1,17 +1,19 @@
-"use server";
 import { db } from "@/db";
 import { userTable } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-export async function verifyEmailInput(email: string): Promise<boolean> {
+export function verifyEmailInput(email: string): boolean {
   return /^.+@.+\..+$/.test(email) && email.length < 256;
 }
 
 export async function checkEmailAvailability(email: string): Promise<boolean> {
-  const count = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(userTable)
-    .where(eq(userTable.email, email));
+  "use server";
 
-  return count[0].count === 0; // Email is available if count is 0
+  const results = await db
+    .select({ id: userTable.id }) // Only select necessary fields
+    .from(userTable)
+    .where(eq(userTable.email, email))
+    .limit(1); // Fetch at most 1 record
+
+  return results.length === 0; // Email is available if no rows are returned
 }

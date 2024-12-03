@@ -1,4 +1,3 @@
-"use server";
 import { db } from "@/db";
 
 import { ExpiringTokenBucket } from "./rate-limit";
@@ -17,6 +16,8 @@ export async function resetUser2FAWithRecoveryCode(
   userId: number,
   recoveryCode: string
 ): Promise<boolean> {
+  "use server";
+
   const existingUser = await db
     .select({ recoveryCode: userTable.recoveryCode })
     .from(userTable)
@@ -78,7 +79,7 @@ export async function resetUser2FAWithRecoveryCode(
   return true;
 }
 
-export async function get2FARedirect(user: User): Promise<string> {
+export function get2FARedirect(user: User): string {
   if (user.registeredPasskey) {
     return "/auth/2fa/passkey";
   }
@@ -91,7 +92,7 @@ export async function get2FARedirect(user: User): Promise<string> {
   return "/auth/2fa/setup";
 }
 
-export async function getPasswordReset2FARedirect(user: User): Promise<string> {
+export function getPasswordReset2FARedirect(user: User): string {
   if (user.registeredPasskey) {
     return "/auth/reset-password/2fa/passkey";
   }

@@ -41,7 +41,6 @@ export const userInsertSchema = createInsertSchema(user, {
 export const signupSchema = userInsertSchema
   .extend({
     confirmPassword: z.string(),
-    contactMethod: z.enum(["email", "phone"]),
     userType: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -50,8 +49,8 @@ export const signupSchema = userInsertSchema
   })
   .refine(
     (data) => {
-      if (data.contactMethod === "email") {
-        const isValid = isValiEmail(data.email || "");
+      if (data.email) {
+        const isValid = isValiEmail(data.email);
         if (!isValid) {
           return false;
         }
@@ -66,8 +65,8 @@ export const signupSchema = userInsertSchema
   )
   .refine(
     (data) => {
-      if (data.contactMethod === "phone") {
-        const isValid = isvalidPhone(data.phone || "");
+      if (data.phone) {
+        const isValid = isvalidPhone(data.phone);
         if (!isValid) {
           return false;
         }
@@ -78,21 +77,6 @@ export const signupSchema = userInsertSchema
     {
       message: messages.phone,
       path: ["phone"],
-    }
-  )
-  .refine(
-    (data) => {
-      if (
-        data.userType === "freelancer" ||
-        data.userType === "job_seeker" ||
-        data.userType === "employer"
-      ) {
-        return true;
-      }
-    },
-    {
-      message: "نوع کاربر را انتخاب کنید",
-      path: ["userType"],
     }
   );
 

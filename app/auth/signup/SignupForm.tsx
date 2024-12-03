@@ -1,23 +1,18 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { startTransition, useActionState, useRef } from "react";
-import { useForm } from "react-hook-form";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-
+  startTransition,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { useForm } from "react-hook-form";
+import { Form } from "@/components/ui/form";
 import { signupSchema, type SignupSchemaType } from "@/zod-schemas/user";
 import { signupAction } from "./actions";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import CustomSelectField, {
-  CustomSelectDataObj,
-} from "@/components/CustomSelectField";
 import CustomInputField from "@/components/CustomInputField";
 
 import {
@@ -32,22 +27,23 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
 
-// Array definition
-export const UserTypesArr: CustomSelectDataObj[] = [
-  {
-    id: "job_seeker",
-    description: "کارجوی کار دائمی",
-  },
-  {
-    id: "freelancer",
-    description: "فریلنسر",
-  },
-  {
-    id: "employer",
-    description: "کارفرما",
-  },
-];
+// // Array definition
+// export const UserTypesArr: CustomSelectDataObj[] = [
+//   {
+//     id: "job_seeker",
+//     description: "کارجوی کار دائمی",
+//   },
+//   {
+//     id: "freelancer",
+//     description: "فریلنسر",
+//   },
+//   {
+//     id: "employer",
+//     description: "کارفرما",
+//   },
+// ];
 
 export default function SignupForm() {
   const [state, formAction, isPending] = useActionState(signupAction, {
@@ -58,16 +54,15 @@ export default function SignupForm() {
     resolver: zodResolver(signupSchema),
     defaultValues: {
       username: "",
-      email: "",
-      phone: "",
+      email: null,
+      phone: null,
       password: "",
       confirmPassword: "",
-      userType: "",
-      contactMethod: "email",
       ...(state?.fields ?? {}),
     },
   });
 
+  const [contactType, setContactType] = useState("phone");
   const formRef = useRef<HTMLFormElement>(null);
 
   const onSubmit = (data: SignupSchemaType) => {
@@ -78,16 +73,22 @@ export default function SignupForm() {
       }
     });
 
-    // Ensure both email and phone are always present
-    if (data.contactMethod === "email") {
-      formData.set("phone", "");
-    } else if (data.contactMethod === "phone") {
-      formData.set("email", "");
-    }
     startTransition(() => {
       formAction(formData);
     });
   };
+
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === "email" && value.email) {
+        form.setValue("phone", null);
+      } else if (name === "phone" && value.phone) {
+        form.setValue("email", null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   return (
     <Form {...form}>
@@ -129,49 +130,25 @@ export default function SignupForm() {
             icon={<User className='h-4 w-4 text-gray-500' />}
           />
 
-          <CustomSelectField<SignupSchemaType>
-            name='نوع کاربری'
-            schemaName='userType'
-            data={UserTypesArr}
-          />
+          <RadioGroup
+            onValueChange={(value) => {
+              setContactType(value);
+            }}
+            defaultValue={contactType}
+            className='flex space-x-4 rtl:space-x-reverse'
+            dir='rtl'
+          >
+            <div className='flex items-center space-x-2 space-y-0 rtl:space-x-reverse'>
+              <RadioGroupItem value='phone' id='phone' />
+              <Label htmlFor='phone'>ثبت با تلفن</Label>
+            </div>
+            <div className='flex items-center space-x-2 space-y-0 rtl:space-x-reverse'>
+              <RadioGroupItem value='email' id='email' />
+              <Label htmlFor='email'>ثبت با ایمیل</Label>
+            </div>
+          </RadioGroup>
 
-          <FormField
-            control={form.control}
-            name='contactMethod'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>روش ثبت نام</FormLabel>
-                <FormControl>
-                  <RadioGroup
-                    dir='rtl'
-                    value={field.value}
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      form.setValue("email", "");
-                      form.setValue("phone", "");
-                    }}
-                    className='flex space-x-4 rtl:space-x-reverse'
-                  >
-                    <FormItem className='flex items-center space-x-2 space-y-0 rtl:space-x-reverse'>
-                      <FormControl>
-                        <RadioGroupItem value='email' />
-                      </FormControl>
-                      <FormLabel className='font-normal'>ایمیل</FormLabel>
-                    </FormItem>
-                    <FormItem className='flex items-center space-x-2 space-y-0 rtl:space-x-reverse'>
-                      <FormControl>
-                        <RadioGroupItem value='phone' />
-                      </FormControl>
-                      <FormLabel className='font-normal'>تلفن</FormLabel>
-                    </FormItem>
-                  </RadioGroup>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {form.watch("contactMethod") === "email" && (
+          {contactType === "email" && (
             <CustomInputField
               name='ایمیل'
               schemaName='email'
@@ -180,7 +157,7 @@ export default function SignupForm() {
               icon={<Mail className='h-4 w-4 text-gray-500' />}
             />
           )}
-          {form.watch("contactMethod") === "phone" && (
+          {contactType === "phone" && (
             <CustomInputField
               name='تلفن'
               schemaName='phone'

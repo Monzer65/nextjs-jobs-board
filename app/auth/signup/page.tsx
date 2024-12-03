@@ -14,6 +14,8 @@ import { redirect } from "next/navigation";
 import { globalGETRateLimit } from "@/lib/server/request";
 import Image from "next/image";
 import { get2FARedirect } from "@/lib/server/2fa";
+import { buttonVariants } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 export default async function SignupPage() {
   if (!(await globalGETRateLimit())) {
@@ -21,8 +23,10 @@ export default async function SignupPage() {
   }
   const { session, user } = await getCurrentSession();
   if (session !== null) {
-    if (!user.emailVerified) {
+    if (user.email && !user.emailVerified) {
       return redirect("/auth/verify-email");
+    } else if (user.phone && !user.phoneVerified) {
+      return redirect("/auth/verify-phone");
     }
     if (!user.registered2FA) {
       return redirect("/auth/2fa/setup");
@@ -55,7 +59,19 @@ export default async function SignupPage() {
       <CardContent>
         <SignupForm />
       </CardContent>
-      <CardFooter className='flex justify-center'>
+
+      <CardFooter className='flex flex-col gap-2 justify-center'>
+        <Separator />
+        <div className='flex flex-col sm:flex-row text-center justify-center gap-2 [&>*]:w-full'>
+          <Link
+            href='/auth/login/google'
+            passHref
+            className={`${buttonVariants({ variant: "outline" })} w-full`}
+          >
+            <Image src='/G-logo.svg' alt='Google Logo' width={20} height={20} />
+            ورود با گوگل
+          </Link>
+        </div>
         <p className='text-sm text-muted-foreground'>
           قبلا ثبت نام کرده اید؟
           <Link

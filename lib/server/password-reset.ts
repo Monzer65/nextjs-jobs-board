@@ -176,9 +176,9 @@ export async function validatePasswordResetSessionRequest(): Promise<PasswordRes
   if (token === null) {
     return { session: null, user: null };
   }
-  const result = validatePasswordResetSessionToken(token);
-  if ((await result).session === null) {
-    deletePasswordResetSessionTokenCookie();
+  const result = await validatePasswordResetSessionToken(token);
+  if (result.session === null) {
+    await deletePasswordResetSessionTokenCookie();
   }
   return result;
 }
@@ -188,9 +188,9 @@ export const getCurrentPasswordResetSession = cache(async () => {
   if (token === null) {
     return { session: null, user: null };
   }
-  const result = validatePasswordResetSessionToken(token);
-  if ((await result).session === null) {
-    deletePasswordResetSessionTokenCookie();
+  const result = await validatePasswordResetSessionToken(token);
+  if (result.session === null) {
+    await deletePasswordResetSessionTokenCookie();
   }
   return result;
 });
@@ -225,7 +225,7 @@ export async function sendPasswordResetEmail(
 ): Promise<void> {
   console.log(`To ${email}: Your reset code is ${code}`);
 }
-export async function sendPasswordResetPhone(
+export async function sendPasswordResetSMS(
   phone: string,
   code: string
 ): Promise<void> {
