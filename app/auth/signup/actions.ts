@@ -1,16 +1,12 @@
 "use server";
 
-// import { eq, or } from "drizzle-orm";
-// import { db } from "@/db";
 import { signupSchema } from "@/zod-schemas/user";
-// import { redirect } from "next/navigation";
 import { globalPOSTRateLimit } from "@/lib/server/request";
 import {
   createSession,
   generateSessionToken,
   setSessionTokenCookie,
 } from "@/lib/server/session";
-// import { userTable } from "@/db/schema/user";
 // import { verifyPasswordStrength } from "@/lib/server/password";
 import {
   createEmailVerificationRequest,
@@ -39,7 +35,7 @@ export interface FormState {
 const ipBucket = new RefillingTokenBucket<string>(3, 60);
 
 export async function signupAction(
-  prevState: FormState,
+  _prevState: FormState,
   data: FormData
 ): Promise<FormState> {
   if (!(await globalPOSTRateLimit())) {
@@ -62,7 +58,6 @@ export async function signupAction(
   const fields: Record<string, string> = Object.fromEntries(
     Object.entries(formData).map(([key, value]) => [key, value.toString()])
   );
-  console.log("fields", fields);
 
   if (!parsed.success) {
     console.error("Validation Error:", parsed.error.issues);
@@ -119,15 +114,7 @@ export async function signupAction(
       };
     }
 
-    const user = await createUser(
-      username,
-      password,
-      email!,
-      phone!,
-      undefined,
-      undefined,
-      undefined
-    );
+    const user = await createUser(username, password, email!, phone!);
 
     if (email && !phone) {
       const emailVerificationRequest = await createEmailVerificationRequest(
@@ -144,10 +131,10 @@ export async function signupAction(
         user.id,
         user.phone!
       );
-      await sendVerificationSMS(
-        phoneVerificationRequest.phone,
-        phoneVerificationRequest.code
-      );
+      // await sendVerificationSMS(
+      //   phoneVerificationRequest.phone,
+      //   phoneVerificationRequest.code
+      // );
       await setPhoneVerificationRequestCookie(phoneVerificationRequest);
     }
 
@@ -157,6 +144,10 @@ export async function signupAction(
     const sessionToken = await generateSessionToken();
     const session = await createSession(sessionToken, user.id, sessionFlags);
     await setSessionTokenCookie(sessionToken, session.expiresAt);
+    return {
+      message: "ثبت نام با موفقیت انجام شد",
+      success: true,
+    };
   } catch (error) {
     console.error("Error registering user:", error);
     return {
@@ -164,8 +155,4 @@ export async function signupAction(
       success: false,
     };
   }
-  return {
-    message: "ثبت نام با موفقیت انجام شد",
-    success: true,
-  };
 }

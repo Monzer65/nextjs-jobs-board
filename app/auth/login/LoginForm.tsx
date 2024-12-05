@@ -1,71 +1,166 @@
 "use client";
 
-import { startTransition } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { useActionState } from "react";
 import { loginAction } from "./actions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, LogIn } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertCircle,
+  Loader2,
+  Lock,
+  LogIn,
+  Mail,
+  Phone,
+  X,
+} from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import CustomInputField from "@/components/CustomInputField";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { loginSchema, LoginSchemaType } from "@/zod-schemas/user";
+import { Form } from "@/components/ui/form";
 
 const initialState = {
   message: "",
   success: false,
+  fields: {},
 };
 
 export function LoginForm() {
   const [state, action, isPending] = useActionState(loginAction, initialState);
+  const [contactType, setContactType] = useState("phone");
+  const formRef = useRef<HTMLFormElement>(null);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const form = useForm<LoginSchemaType>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: null,
+      phone: null,
+      password: "",
+      ...(state?.fields ?? {}),
+    },
+  });
+
+  const onSubmit = async (data: LoginSchemaType) => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        formData.append(key, value.toString());
+      }
+    });
     startTransition(() => {
-      action(new FormData(event.currentTarget));
+      action(formData);
     });
   };
 
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === "email" && value.email) {
+        form.setValue("phone", null);
+      } else if (name === "phone" && value.phone) {
+        form.setValue("email", null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [form]);
+
   return (
-    <form action={action} onSubmit={handleSubmit} className='space-y-4'>
-      <div className='space-y-2'>
-        <Label htmlFor='email'>ایمیل</Label>
-        <Input
-          id='email'
-          name='email'
-          type='email'
-          autoComplete='username'
-          required
-          placeholder='ایمیل خود را وارد کنید'
-        />
-      </div>
-      <div className='space-y-2'>
-        <Label htmlFor='password'>پسورد</Label>
-        <Input
-          id='password'
-          name='password'
-          type='password'
-          autoComplete='current-password'
-          required
-          placeholder='پسورد خود را وارد کنید'
-        />
-      </div>
-      <Button type='submit' className='w-full' disabled={isPending}>
-        {isPending ? (
-          <Loader2 className='h-4 w-4 animate-spin' />
-        ) : (
-          <LogIn className='h-4 w-4 rotate-180' />
+    <Form {...form}>
+      <form
+        ref={formRef}
+        action={action}
+        onSubmit={form.handleSubmit(onSubmit)}
+        className='space-y-4'
+      >
+        {state?.message && !state.issues && (
+          <Alert variant='destructive' className='mt-4' dir='rtl'>
+            <AlertCircle className='ml-2 h-4 w-4 text-red-500' />
+            <AlertTitle className='flex items-center'>خطا</AlertTitle>
+            <AlertDescription>{state.message}</AlertDescription>
+          </Alert>
         )}
-        {isPending ? "درحال بررسی..." : "ورود"}
-      </Button>
-      {state.message && (
-        <Alert
-          variant={state.success ? "default" : "destructive"}
-          className='mt-4'
+        {state?.issues && (
+          <div
+            className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative'
+            role='alert'
+          >
+            <ul className='list-disc list-inside'>
+              {state.issues.map((issue) => (
+                <li key={issue} className='flex items-center gap-2'>
+                  <X className='h-4 w-4' />
+                  <span>{issue}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className='space-y-2'>
+          <RadioGroup
+            onValueChange={(value) => {
+              setContactType(value);
+            }}
+            defaultValue={contactType}
+            className='flex space-x-4 rtl:space-x-reverse'
+            dir='rtl'
+          >
+            <div className='flex items-center space-x-2 space-y-0 rtl:space-x-reverse'>
+              <RadioGroupItem value='phone' id='phone' />
+              <Label htmlFor='phone'>ورود با تلفن</Label>
+            </div>
+            <div className='flex items-center space-x-2 space-y-0 rtl:space-x-reverse'>
+              <RadioGroupItem value='email' id='email' />
+              <Label htmlFor='email'>ورود با ایمیل</Label>
+            </div>
+          </RadioGroup>
+
+          {contactType === "email" && (
+            <CustomInputField
+              name='ایمیل'
+              schemaName='email'
+              type='email'
+              autoComplete='email'
+              icon={<Mail className='h-4 w-4 text-gray-500' />}
+            />
+          )}
+          {contactType === "phone" && (
+            <CustomInputField
+              name='تلفن'
+              schemaName='phone'
+              type='tel'
+              autoComplete='tel'
+              icon={<Phone className='h-4 w-4 text-gray-500' />}
+            />
+          )}
+        </div>
+        <div className='relative'>
+          <CustomInputField
+            name='پسورد'
+            schemaName='password'
+            type='password'
+            autoComplete='current-password'
+            icon={<Lock className='h-4 w-4 text-gray-500' />}
+          />
+        </div>
+        <Button
+          type='submit'
+          className={`w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white py-2 rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all duration-300 ${
+            isPending ? "opacity-75" : "opacity-100"
+          }`}
+          disabled={isPending}
         >
-          <AlertDescription>{state.message}</AlertDescription>
-        </Alert>
-      )}
-    </form>
+          {isPending ? (
+            <Loader2 className='h-4 w-4 animate-spin' />
+          ) : (
+            <LogIn className='h-4 w-4 rotate-180' />
+          )}
+          ورود
+        </Button>
+      </form>
+    </Form>
   );
 }
 

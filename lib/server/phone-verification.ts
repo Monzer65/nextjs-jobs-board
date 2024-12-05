@@ -1,4 +1,4 @@
-import { generateRandomOTP } from "@/lib/utils";
+import { generateRandomOTP, normalizePhone } from "@/lib/utils";
 import { db } from "@/db";
 import { ExpiringTokenBucket } from "./rate-limit";
 import { encodeBase32LowerCaseNoPadding } from "@oslojs/encoding";
@@ -50,21 +50,25 @@ export async function createPhoneVerificationRequest(
   phone: string
 ): Promise<PhoneVerificationRequest> {
   "use server";
-
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) {
+    throw new Error("تلفن نامعتبر است");
+  }
   await deleteUserPhoneVerificationRequest(userId);
   const idBytes = new Uint8Array(20);
   crypto.getRandomValues(idBytes);
   const id = encodeBase32LowerCaseNoPadding(idBytes);
 
-  const code = generateRandomOTP();
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 10);
+  // const code = generateRandomOTP();
+  const code = Math.floor(100000 + Math.random() * 900000); //  6-digit code
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 10); // 10 minutes
   await db
     .insert(phoneVerificationRequestTable)
     .values({
       id,
       userId,
-      code,
-      phone,
+      code: code.toString(),
+      phone: normalizedPhone,
       expiresAt,
     })
     .returning({ id: phoneVerificationRequestTable.id });
@@ -72,8 +76,8 @@ export async function createPhoneVerificationRequest(
   const request: PhoneVerificationRequest = {
     id,
     userId,
-    code,
-    phone,
+    code: code.toString(),
+    phone: normalizedPhone,
     expiresAt,
   };
   return request;

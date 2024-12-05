@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
-import user from "@/db/schema/user";
+import userTable from "@/db/schema/user";
+import {
+  emailVerificationRequestTable,
+  phoneVerificationRequestTable,
+} from "@/db/schema";
 
 const messages = {
   required: "این فیلد اجباری است",
@@ -27,7 +31,7 @@ export const isvalidPhone = (phone: string) => {
   return phoneRegex.test(phone);
 };
 
-export const userInsertSchema = createInsertSchema(user, {
+export const signupInsertSchema = createInsertSchema(userTable, {
   username: (schema) =>
     schema.username
       .min(3, messages.username)
@@ -38,10 +42,9 @@ export const userInsertSchema = createInsertSchema(user, {
   password: (schema) => schema.password.min(8, messages.password),
 });
 
-export const signupSchema = userInsertSchema
+export const signupSchema = signupInsertSchema
   .extend({
     confirmPassword: z.string(),
-    userType: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: messages.confirm,
@@ -80,12 +83,13 @@ export const signupSchema = userInsertSchema
     }
   );
 
-export const confirmationSchema = z
-  .object({
-    email: z.string().optional(),
-    phone: z.string().optional(),
-    otp: z.string().length(6, "کد تایید باید حداقل ۶ کاراکتر باشد"),
-  })
+export const loginInsertSchema = createInsertSchema(userTable, {
+  phone: (schema) => schema.phone.optional(),
+  email: (schema) => schema.email.optional(),
+  password: (schema) => schema.password.min(8, "رمز عبور صحیح نیست"),
+});
+
+export const loginSchema = loginInsertSchema
   .refine(
     (data) => {
       if (data.email) {
@@ -119,16 +123,26 @@ export const confirmationSchema = z
     }
   );
 
-export const loginSchema = z.object({
-  email: z.string().optional(),
-  phone: z.string().optional(),
-  password: z.string().min(6, messages.password),
-});
+export const emailVerificationSchema = createInsertSchema(
+  emailVerificationRequestTable,
+  {
+    code: (schema) => schema.code.min(6, "کد وارد شده صحیح نیست"),
+  }
+);
 
-export const updateUserSchema = userInsertSchema.partial();
-export const selectUserSchema = createSelectSchema(user);
-export type UserInsertSchemaType = z.infer<typeof userInsertSchema>;
+export const phoneVerificationSchema = z.object({
+  code: z.string(),
+});
+export const updateUserSchema = signupInsertSchema.partial();
+export const selectUserSchema = createSelectSchema(userTable);
+export type SignupInsertSchemaType = z.infer<typeof signupInsertSchema>;
 export type SignupSchemaType = z.infer<typeof signupSchema>;
-export type ConfirmationSchemaType = z.infer<typeof confirmationSchema>;
 export type SelectUserSchemaType = z.infer<typeof selectUserSchema>;
+export type LoginInsertSchemaType = z.infer<typeof loginInsertSchema>;
 export type LoginSchemaType = z.infer<typeof loginSchema>;
+export type EmailVerificationSchemaType = z.infer<
+  typeof emailVerificationSchema
+>;
+export type PhoneVerificationSchemaType = z.infer<
+  typeof phoneVerificationSchema
+>;

@@ -1,14 +1,9 @@
+"use server";
 import { db } from "@/db";
 import { userTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-export function verifyEmailInput(email: string): boolean {
-  return /^.+@.+\..+$/.test(email) && email.length < 256;
-}
-
 export async function checkEmailAvailability(email: string): Promise<boolean> {
-  "use server";
-
   const results = await db
     .select({ id: userTable.id }) // Only select necessary fields
     .from(userTable)

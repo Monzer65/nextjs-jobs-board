@@ -32,7 +32,7 @@ export default async function SignupPage() {
       return redirect("/auth/2fa/setup");
     }
     if (!session.twoFactorVerified) {
-      return redirect(await get2FARedirect(user));
+      return redirect(get2FARedirect(user));
     }
     return redirect("/");
   }

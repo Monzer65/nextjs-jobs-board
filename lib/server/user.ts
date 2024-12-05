@@ -2,7 +2,7 @@
 import { db } from "@/db";
 import { decrypt, decryptToString, encrypt, encryptString } from "./encryption";
 import { hashPassword } from "./password";
-import { generateRandomRecoveryCode } from "@/lib/utils";
+import { generateRandomRecoveryCode, normalizePhone } from "@/lib/utils";
 import userTable from "@/db/schema/user";
 import { and, eq, sql } from "drizzle-orm";
 import totpCredentialTable from "@/db/schema/totpCredential";
@@ -32,17 +32,21 @@ export async function createUser(
   googleId?: string,
   picture?: string
 ): Promise<User> {
+  const normalizedPhone = phone ? normalizePhone(phone) : null;
+  if (phone && !normalizedPhone) {
+    throw new Error("تلفن نامعتبر است");
+  }
   const passwordHash = await hashPassword(password);
   const recoveryCode = generateRandomRecoveryCode();
   const encryptedRecoveryCode = encryptString(recoveryCode);
   const values = {
-    email: email ?? null,
-    phone: phone ?? null,
+    email: email?.toLowerCase() ?? null,
+    phone: normalizedPhone,
     username,
     password: passwordHash,
     fullname: fullname ?? null,
-    googleId,
-    picture,
+    googleId: googleId ?? null,
+    picture: picture ?? null,
     recoveryCode: encryptedRecoveryCode,
     emailVerified: false,
     phoneVerified: false,
@@ -104,10 +108,11 @@ export async function updateUserPhoneAndSetPhoneAsVerified(
   userId: number,
   phone: string
 ): Promise<void> {
+  const normalizedPhone = normalizePhone(phone);
   await db
     .update(userTable)
     .set({
-      phone,
+      phone: normalizedPhone,
       phoneVerified: true,
     })
     .where(eq(userTable.id, userId));
@@ -130,12 +135,16 @@ export async function setUserAsPhoneVerifiedIfPhoneMatches(
   userId: number,
   phone: string
 ): Promise<boolean> {
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) {
+    throw new Error("تلفن نامعتبر است");
+  }
   const result = await db
     .update(userTable)
     .set({
       phoneVerified: true,
     })
-    .where(and(eq(userTable.id, userId), eq(userTable.phone, phone)));
+    .where(and(eq(userTable.id, userId), eq(userTable.phone, normalizedPhone)));
   return result.rowCount > 0;
 }
 
@@ -328,8 +337,8 @@ export async function getUserFromPhone(phone: string): Promise<User | null> {
   return user;
 }
 
-export async function getUserFromGoogleId(
-  googleId: string
+export async function getUserFromUsername(
+  username: string
 ): Promise<User | null> {
   const rows = await db
     .select({
@@ -355,11 +364,21 @@ export async function getUserFromGoogleId(
         ),
     })
     .from(userTable)
-    .where(eq(userTable.googleId, googleId));
+    .leftJoin(totpCredentialTable, eq(userTable.id, totpCredentialTable.userId))
+    .leftJoin(
+      passkeyCredentialTable,
+      eq(userTable.id, passkeyCredentialTable.userId)
+    )
+    .leftJoin(
+      securityKeyCredentialTable,
+      eq(userTable.id, securityKeyCredentialTable.userId)
+    )
+    .where(eq(userTable.username, username))
+    .limit(1);
+
   if (rows.length === 0) {
     return null;
   }
-
   const user: User = {
     id: rows[0].userId,
     email: rows[0].email ?? undefined,
@@ -373,6 +392,14 @@ export async function getUserFromGoogleId(
     registeredPasskey: Boolean(rows[0].registeredPasskey),
     registeredSecurityKey: Boolean(rows[0].registeredSecurityKey),
   };
+
+  if (
+    user.registeredPasskey ||
+    user.registeredSecurityKey ||
+    user.registeredTOTP
+  ) {
+    user.registered2FA = true;
+  }
 
   return user;
 }

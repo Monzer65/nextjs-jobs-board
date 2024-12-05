@@ -1,27 +1,12 @@
 "use server";
 
-import { eq, or } from "drizzle-orm";
-import { db } from "@/db";
-import { confirmationSchema, signupSchema } from "@/zod-schemas/user";
 import { redirect } from "next/navigation";
 import { globalPOSTRateLimit } from "@/lib/server/request";
 import {
-  createSession,
   deleteSessionTokenCookie,
-  generateSessionToken,
   getCurrentSession,
   invalidateSession,
-  SessionFlags,
-  setSessionTokenCookie,
 } from "@/lib/server/session";
-import { userTable } from "@/db/schema/user";
-import { verifyPasswordStrength } from "@/lib/server/password";
-import {
-  createEmailVerificationRequest,
-  sendVerificationEmail,
-  setEmailVerificationRequestCookie,
-} from "@/lib/server/email-verification";
-import { createUser } from "@/lib/server/user";
 
 export type FormState = {
   message: string;
@@ -145,107 +130,107 @@ export type FormState = {
 //   }
 // };
 
-export async function verifyOtpAction(
-  prevState: FormState,
-  data: FormData
-): Promise<FormState> {
-  const formData = Object.fromEntries(data);
-  const fields: Record<string, string> = Object.fromEntries(
-    Object.entries(formData).map(([key, value]) => [key, value.toString()])
-  );
-  const parsed = confirmationSchema.safeParse(formData);
-  console.log("data:", parsed.data);
-  if (!parsed.success) {
-    console.error("Validation Error:", parsed.error.issues);
-    return {
-      message: "داده های ورودی نامعتبر است",
-      fields,
-      issues: parsed.error.issues.map((issue) => issue.message),
-      success: false,
-    };
-  }
+// export async function verifyOtpAction(
+//   prevState: FormState,
+//   data: FormData
+// ): Promise<FormState> {
+//   const formData = Object.fromEntries(data);
+//   const fields: Record<string, string> = Object.fromEntries(
+//     Object.entries(formData).map(([key, value]) => [key, value.toString()])
+//   );
+//   const parsed = confirmationSchema.safeParse(formData);
+//   console.log("data:", parsed.data);
+//   if (!parsed.success) {
+//     console.error("Validation Error:", parsed.error.issues);
+//     return {
+//       message: "داده های ورودی نامعتبر است",
+//       fields,
+//       issues: parsed.error.issues.map((issue) => issue.message),
+//       success: false,
+//     };
+//   }
 
-  const { email, phone, otp } = parsed.data;
+//   const { email, phone, otp } = parsed.data;
 
-  const conditions = [];
+//   const conditions = [];
 
-  if (email) {
-    conditions.push(eq(userTable.email, email));
-  }
+//   if (email) {
+//     conditions.push(eq(userTable.email, email));
+//   }
 
-  if (phone) {
-    conditions.push(eq(userTable.phone, phone));
-  }
+//   if (phone) {
+//     conditions.push(eq(userTable.phone, phone));
+//   }
 
-  if (conditions.length === 0) {
-    return { message: "ایمیل و یا تلفن باید موجود باشد" };
-  }
+//   if (conditions.length === 0) {
+//     return { message: "ایمیل و یا تلفن باید موجود باشد" };
+//   }
 
-  const queryCondition =
-    conditions.length > 1 ? or(...conditions) : conditions[0];
-  try {
-    const existingUser = await db
-      .select()
-      .from(userTable)
-      .where(queryCondition);
+//   const queryCondition =
+//     conditions.length > 1 ? or(...conditions) : conditions[0];
+//   try {
+//     const existingUser = await db
+//       .select()
+//       .from(userTable)
+//       .where(queryCondition);
 
-    if (existingUser.length === 0) {
-      if (email) {
-        return {
-          message: "کاربری با این ایمیل وجود ندارد",
-          fields,
-          success: false,
-        };
-      }
-      return {
-        message: "کاربری با این شماره موبایل وجود ندارد",
-        fields,
-        success: false,
-      };
-    }
+//     if (existingUser.length === 0) {
+//       if (email) {
+//         return {
+//           message: "کاربری با این ایمیل وجود ندارد",
+//           fields,
+//           success: false,
+//         };
+//       }
+//       return {
+//         message: "کاربری با این شماره موبایل وجود ندارد",
+//         fields,
+//         success: false,
+//       };
+//     }
 
-    if (
-      (email && existingUser[0].emailVerified === true) ||
-      (phone && existingUser[0].phoneVerified === true)
-    ) {
-      return {
-        message: `این ${
-          email ? `ایمیل: ${email}` : `تلفن: ${phone}`
-        } قبلا تایید شده است`,
-      };
-    }
+//     if (
+//       (email && existingUser[0].emailVerified === true) ||
+//       (phone && existingUser[0].phoneVerified === true)
+//     ) {
+//       return {
+//         message: `این ${
+//           email ? `ایمیل: ${email}` : `تلفن: ${phone}`
+//         } قبلا تایید شده است`,
+//       };
+//     }
 
-    if (existingUser[0].confirmationCode === otp) {
-      if (phone && existingUser[0].phone === phone) {
-        await db
-          .update(userTable)
-          .set({ phoneVerified: true, confirmationCode: null })
-          .where(eq(userTable.id, existingUser[0].id));
-      } else if (email && existingUser[0].email === email) {
-        await db
-          .update(userTable)
-          .set({ emailVerified: true, confirmationCode: null })
-          .where(eq(userTable.id, existingUser[0].id));
-      }
+//     if (existingUser[0].confirmationCode === otp) {
+//       if (phone && existingUser[0].phone === phone) {
+//         await db
+//           .update(userTable)
+//           .set({ phoneVerified: true, confirmationCode: null })
+//           .where(eq(userTable.id, existingUser[0].id));
+//       } else if (email && existingUser[0].email === email) {
+//         await db
+//           .update(userTable)
+//           .set({ emailVerified: true, confirmationCode: null })
+//           .where(eq(userTable.id, existingUser[0].id));
+//       }
 
-      return {
-        message: "تایید شد",
-        success: true,
-      };
-    } else {
-      return {
-        message: "کد تایید نامعتبر است",
-        success: false,
-      };
-    }
-  } catch (error) {
-    console.error("Error verifying OTP:", error);
-    return {
-      message: "خطا در تایید کد",
-      success: false,
-    };
-  }
-}
+//       return {
+//         message: "تایید شد",
+//         success: true,
+//       };
+//     } else {
+//       return {
+//         message: "کد تایید نامعتبر است",
+//         success: false,
+//       };
+//     }
+//   } catch (error) {
+//     console.error("Error verifying OTP:", error);
+//     return {
+//       message: "خطا در تایید کد",
+//       success: false,
+//     };
+//   }
+// }
 
 interface ActionResult {
   message: string;

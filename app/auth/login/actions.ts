@@ -1,8 +1,5 @@
-// "use server";
+"use server";
 
-// import { userTable } from "@/db/schema/user";
-// import { sessionTable } from "@/db/schema/session";
-import { verifyEmailInput } from "@/lib/server/email";
 import { verifyPasswordHash } from "@/lib/server/password";
 import { globalPOSTRateLimit } from "@/lib/server/request";
 import {
@@ -11,13 +8,18 @@ import {
   SessionFlags,
   setSessionTokenCookie,
 } from "@/lib/server/session";
-import { getUserFromEmail, getUserPasswordHash } from "@/lib/server/user";
-// import { headers } from "next/headers";
+import {
+  getUserFromEmail,
+  getUserFromPhone,
+  getUserPasswordHash,
+} from "@/lib/server/user";
 import { redirect } from "next/navigation";
 
 // import { verifyEmailInput } from "@/lib/server/email";
 // import { verifyPasswordHash } from "@/lib/server/password";
-// import { TokenBucket, Throttler } from "@/lib/server/rate-limit";
+import { Throttler, RefillingTokenBucket } from "@/lib/server/rate-limit";
+import { headers } from "next/headers";
+import { loginSchema } from "@/zod-schemas/user";
 // import {
 //   createSession,
 //   generateSessionToken,
@@ -58,73 +60,91 @@ import { redirect } from "next/navigation";
 // import type { SessionFlags } from "@/lib/server/session";
 // import type { AuthenticatorData, ClientData } from "@oslojs/webauthn";
 
-// const throttler = new Throttler<number>([1, 2, 4, 8, 16, 30, 60, 180, 300]);
-// const ipBucket = new TokenBucket<string>(20, 1);
+const throttler = new Throttler<number>([1, 2, 4, 8, 16, 30, 60, 180, 300]);
+const ipBucket = new RefillingTokenBucket<string>(20, 1);
+interface ActionResult {
+  message: string;
+  fields?: Record<string, string>;
+  issues?: string[];
+  success?: boolean;
+}
 
 export async function loginAction(
   _prev: ActionResult,
-  formData: FormData
+  data: FormData
 ): Promise<ActionResult> {
-  if (!globalPOSTRateLimit()) {
+  if (!(await globalPOSTRateLimit())) {
     return {
-      message: "Too many requests",
+      message: "تعداد درخواست های شما بیش از حد مجاز است",
       success: false,
     };
   }
   // TODO: Assumes X-Forwarded-For is always included.
-  // const clientIP = (await headers()).get("X-Forwarded-For");
-  // if (clientIP !== null && !ipBucket.check(clientIP, 1)) {
-  //   return {
-  //     message: "Too many requests",
-  //   };
-  // }
+  const clientIP = (await headers()).get("X-Forwarded-For");
+  if (clientIP !== null && !ipBucket.check(clientIP, 1)) {
+    return {
+      message: "تعداد درخواست های شما بیش از حد مجاز است",
+    };
+  }
 
-  const email = formData.get("email");
-  const password = formData.get("password");
-  if (typeof email !== "string" || typeof password !== "string") {
+  const formData = Object.fromEntries(data);
+  const parsed = loginSchema.safeParse(formData);
+  const fields: Record<string, string> = Object.fromEntries(
+    Object.entries(formData).map(([key, value]) => [key, value.toString()])
+  );
+
+  console.log("Form fields:", fields);
+  if (!parsed.success) {
+    console.error("Validation Error:", parsed.error.issues);
     return {
-      message: "Invalid or missing fields",
+      message: "داده های ورودی نامعتبر است",
+      fields,
+      issues: parsed.error.issues.map((issue) => issue.message),
       success: false,
     };
   }
-  if (email === "" || password === "") {
+
+  const { email, phone, password } = parsed.data;
+
+  if (email && phone) {
     return {
-      message: "Please enter your email and password.",
+      message: "لطفا فقط یکی از فیلد های ایمیل یا تلفن را وارد کنید و نه هردو",
+    };
+  }
+  if (!email && !phone) {
+    return {
+      message: "لطفا یکی از فیلد های ایمیل یا تلفن را وارد کنید",
+    };
+  }
+  let user;
+  if (email) user = await getUserFromEmail(email);
+  else if (phone) user = await getUserFromPhone(phone);
+
+  if (user === null || !user) {
+    return {
+      message: "کاربری با این مشخصات یافت نشد",
       success: false,
     };
   }
-  if (!(await verifyEmailInput(email))) {
+  if (clientIP !== null && !ipBucket.consume(clientIP, 1)) {
     return {
-      message: "Invalid email",
-      success: false,
+      message: "تعداد درخواست های شما بیش از حد مجاز است",
     };
   }
-  const user = await getUserFromEmail(email);
-  if (user === null) {
+  if (!throttler.consume(user.id)) {
     return {
-      message: "Account does not exist",
-      success: false,
+      message: "تعداد درخواست های شما بیش از حد مجاز است",
     };
   }
-  // if (clientIP !== null && !ipBucket.consume(clientIP, 1)) {
-  //   return {
-  //     message: "Too many requests",
-  //   };
-  // }
-  // if (!throttler.consume(userTable.id)) {
-  //   return {
-  //     message: "Too many requests",
-  //   };
-  // }
   const passwordHash = await getUserPasswordHash(user.id);
   const validPassword = await verifyPasswordHash(passwordHash, password);
   if (!validPassword) {
     return {
-      message: "Invalid password",
+      message: "پسورد اشتباه است",
       success: false,
     };
   }
-  // throttler.reset(userTable.id);
+  throttler.reset(user.id);
   const sessionFlags: SessionFlags = {
     twoFactorVerified: false,
   };
@@ -132,12 +152,13 @@ export async function loginAction(
   const session = await createSession(sessionToken, user.id, sessionFlags);
   await setSessionTokenCookie(sessionToken, session.expiresAt);
 
-  if (!user.emailVerified) {
+  if (email && !user.emailVerified) {
     return redirect("/auth/verify-email");
+  } else if (phone && !user.phoneVerified) {
+    return redirect("/auth/verify-phone");
   }
   if (!user.registered2FA) {
-    return redirect("/");
-    // return redirect("/2fa/setup");
+    return redirect("/2fa/setup");
   }
   return redirect("/");
 }
@@ -147,7 +168,7 @@ export async function loginAction(
 // ): Promise<ActionResult> {
 //   if (!globalPOSTRateLimit()) {
 //     return {
-//       message: "Too many requests",
+//       message: "تعداد درخواست های شما بیش از حد مجاز است",",
 //     };
 //   }
 
@@ -277,8 +298,3 @@ export async function loginAction(
 //   setSessionTokenCookie(sessionToken, sessionTable.expiresAt);
 //   return redirect("/");
 // }
-
-interface ActionResult {
-  message: string;
-  success?: boolean;
-}

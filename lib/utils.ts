@@ -7,6 +7,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function formatTime(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(
+    remainingSeconds
+  ).padStart(2, "0")}`;
+}
+
 export function generateRandomOTP(): string {
   const bytes = new Uint8Array(5);
   crypto.getRandomValues(bytes);
@@ -40,3 +48,23 @@ export const generateRandomPassword = (length = 8) => {
     .map((byte) => chars[byte % chars.length])
     .join("");
 };
+
+export function verifyEmailInput(email: string): boolean {
+  return /^.+@.+\..+$/.test(email) && email.length < 256;
+}
+
+export function normalizePhone(phone: string): string | null {
+  const phoneRegex = /^(?:\+98|0098|98|0)?(9[0-9]{9})$/;
+  const match = phone.match(phoneRegex);
+
+  if (match) {
+    // Normalize to international format: +989XXXXXXXXX
+    return `+98${match[1]}`;
+  }
+
+  return null; // Return null if the phone number is invalid
+}
+
+export function verifyPhoneInput(phone: string): boolean {
+  return normalizePhone(phone) !== null && phone.length < 256;
+}
